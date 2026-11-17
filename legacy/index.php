@@ -1,0 +1,774 @@
+<?php
+// Ендпоінт автозаповнення: index.php?fetch=<otodom url>
+if (isset($_GET['fetch'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $fail = function ($msg, $code = 400) { http_response_code($code); echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE); exit; };
+    $url = trim((string)$_GET['fetch']);
+    $p = parse_url($url);
+    $host = strtolower($p['host'] ?? '');
+    if (($p['scheme'] ?? '') !== 'https' || !in_array($host, ['www.otodom.pl', 'otodom.pl'], true)) {
+        $fail('Підтримуються лише посилання https://www.otodom.pl/...');
+    }
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 3,
+        CURLOPT_TIMEOUT => 20, CURLOPT_ENCODING => '',
+        CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36',
+        CURLOPT_HTTPHEADER => ['Accept-Language: pl,uk;q=0.8,en;q=0.5'],
+    ]);
+    $html = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $final = (string)curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    if ($html === false || $code !== 200) $fail("Otodom не відповів (код $code)", 502);
+    if (!preg_match('~<script id="__NEXT_DATA__"[^>]*>(.*?)</script>~s', $html, $m)) $fail('Не вдалося знайти дані оголошення', 502);
+    $ad = json_decode($m[1], true)['props']['pageProps']['ad'] ?? null;
+    if (!$ad) $fail('Оголошення не знайдено (можливо, воно неактивне)', 404);
+    $t = $ad['target'] ?? [];
+    $num = fn($v) => ($v === null || $v === '') ? null : (float)$v;
+    $floorNo = $t['Floor_no'][0] ?? null;
+    $floor = null;
+    if ($floorNo !== null) {
+        $n = $floorNo === 'ground_floor' ? '0' : preg_replace('~\D~', '', $floorNo);
+        $floor = $n . (!empty($t['Building_floors_num']) ? ' / ' . $t['Building_floors_num'] : '');
+    }
+    $extras = ['lift' => 'ліфт', 'balcony' => 'балкон', 'basement' => 'підвал', 'terrace' => 'тераса',
+               'separate_kitchen' => 'окрема кухня', 'garage' => 'гараж', 'usable_room' => 'komórka lokatorska', 'garden' => 'садок'];
+    $feat = [];
+    foreach (($t['Extras_types'] ?? []) as $e) if (isset($extras[$e])) $feat[] = $extras[$e];
+    if (!empty($t['Equipment_types']) && in_array('furniture', $t['Equipment_types'], true)) $feat[] = 'меблі';
+    $desc = mb_strtolower(strip_tags($ad['description'] ?? ''));
+    $needsReno = (bool)preg_match('~do remontu|do własnej aranżacji|do aranżacji|do odświeżenia|do generalnego remontu|wymaga remontu|do wykończenia~u', $desc);
+    $district = null;
+    foreach (($ad['location']['reverseGeocoding']['locations'] ?? []) as $l) {
+        if (($l['locationLevel'] ?? '') === 'district') $district = $l['name'];
+    }
+    $ob = $t['Building_ownership'][0] ?? null;
+    $own = 'unknown';
+    if ($ob === 'full_ownership' || preg_match('~pełn\w+ własno~u', $desc)) $own = 'full';
+    elseif ($ob === 'usufruct' || preg_match('~użytkowani\w+ wieczyst~u', $desc)) $own = 'perp';
+    elseif ($ob === 'limited_ownership' || preg_match('~spółdziel\w+ własnościow~u', $desc)) {
+        if (preg_match('~brak kw|bez kw|bez księgi|nie posiada kw|nie ma kw|założeni\w+\s+ksi\w+|założyć\s+ksi\w+~u', $desc)) $own = 'coop_nokw';
+        elseif (preg_match('~(^|[^\p{L}])kw([^\p{L}]|$)|księg\w*\s+wieczyst~u', $desc)) $own = 'coop_kw';
+        else $own = 'coop';
+    }
+    $street = $ad['location']['address']['street']['name'] ?? null;
+    $agency = ($t['user_type'] ?? '') !== 'private' && ($ad['advertiserType'] ?? '') !== 'private';
+    echo json_encode([
+        'url' => $ad['url'] ?? $final,
+        'title' => $ad['title'] ?? '',
+        'name' => $street ? preg_replace('~^(ul\.|al\.)\s*~u', '', $street) . ($t['Rooms_num'][0] ?? '' ? ' (' . $t['Rooms_num'][0] . '-к)' : '') : ($ad['title'] ?? ''),
+        'loc' => $street, 'dist' => $district,
+        'price' => $num($t['Price'] ?? null), 'area' => $num($t['Area'] ?? null),
+        'rooms' => $t['Rooms_num'][0] ?? null, 'floor' => $floor, 'year' => $t['Build_year'] ?? null,
+        'czynsz' => $num($t['Rent'] ?? null), 'agency' => $agency,
+        'seller' => $ad['agency']['name'] ?? ($ad['owner']['name'] ?? null),
+        'ready' => !$needsReno, 'own' => $own, 'feat' => implode(', ', $feat),
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+?>
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Квартири у Варшаві — порівняння</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --muted:#6a7380; --line:#e3e6ea;
+  --a:#2a6df4; --a-soft:#e6eefe; --b:#e8710a; --b-soft:#fdeedd;
+  --good:#17803d; --good-soft:#e2f5e8; --bad:#b42318; --bar:#c9d0da;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#101317; --card:#181c22; --ink:#e8ebef; --muted:#93a0af; --line:#2a313a;
+    --a:#6b9bff; --a-soft:#1c2a47; --b:#ffa04d; --b-soft:#3a2a18;
+    --good:#5fd08a; --good-soft:#163222; --bad:#ff8a80; --bar:#394250;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 64px}
+header{padding:28px 0 8px}
+h1{margin:0 0 4px;font-size:26px}
+h2{margin:36px 0 12px;font-size:20px}
+.sub{color:var(--muted);margin:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-top:16px}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi .v{font-size:22px;font-weight:650;margin-top:2px}
+.kpi .s{color:var(--muted);font-size:13px}
+
+/* mortgage settings */
+.settings{position:sticky;top:0;z-index:5;margin-top:20px;display:flex;flex-wrap:wrap;gap:16px 24px;align-items:end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:130px}
+.field label{font-size:12px;color:var(--muted)}
+select,input[type=number]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+input[type=range]{width:100%}
+.field.rate{min-width:220px;flex:1}
+.rate-row{display:flex;gap:10px;align-items:center}
+.rate-row input[type=number]{width:84px}
+
+/* bars */
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tab{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px 12px;border-radius:999px;cursor:pointer;font:inherit;font-size:13px}
+.tab[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.bars{display:grid;gap:8px}
+.bar-row{display:grid;grid-template-columns:minmax(120px,210px) 1fr 110px;gap:10px;align-items:center;cursor:pointer;font-size:14px}
+.bar-row .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{background:var(--bg);border-radius:6px;height:20px;overflow:hidden}
+.fill{height:100%;background:var(--bar);border-radius:6px;transition:width .3s}
+.bar-row.selA .fill{background:var(--a)} .bar-row.selB .fill{background:var(--b)}
+.bar-row.selA .name{color:var(--a);font-weight:600} .bar-row.selB .name{color:var(--b);font-weight:600}
+.bar-row .val{text-align:right;font-variant-numeric:tabular-nums}
+.hint{color:var(--muted);font-size:13px;margin-top:8px}
+
+/* compare */
+.pickers{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.picker select{width:100%;font-weight:600}
+.picker.A{border-top:4px solid var(--a)} .picker.B{border-top:4px solid var(--b)}
+table{width:100%;border-collapse:collapse}
+.cmp th,.cmp td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}
+.cmp th.k{width:22%;color:var(--muted);font-weight:500;font-size:14px}
+.cmp td{width:39%}
+.cmp tr.sec th{background:var(--bg);color:var(--ink);font-weight:650;padding-top:14px}
+.win{background:var(--good-soft);box-shadow:inset 3px 0 0 var(--good)}
+.win b::after{content:" ✓";color:var(--good)}
+.cmp .big{font-size:18px;font-weight:650}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:var(--bg);border:1px solid var(--line)}
+.tag.ok{background:var(--good-soft);color:var(--good);border-color:transparent}
+.tag.warn{background:var(--b-soft);color:var(--b);border-color:transparent}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.feat{font-size:13px;color:var(--muted)}
+a{color:var(--a)}
+
+/* all table */
+.tw{overflow-x:auto}
+.all th{cursor:pointer;white-space:nowrap;text-align:left;font-size:12px;color:var(--muted);padding:8px;border-bottom:2px solid var(--line)}
+.all td{padding:8px;border-bottom:1px solid var(--line);white-space:nowrap;font-variant-numeric:tabular-nums}
+.all tr:hover td{background:var(--bg)}
+.all td.n{font-weight:600;white-space:normal;min-width:170px}
+.verdicts{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.verdicts h3{margin:0 0 4px;font-size:15px}
+.verdicts p{margin:4px 0 0;font-size:13px;color:var(--muted)}
+.btn{font:inherit;font-size:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:2px 8px;cursor:pointer}
+.btn.a{color:var(--a)} .btn.b{color:var(--b)}
+
+.addform{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.addform .wide{grid-column:1/-1}
+.addform input[type=text],.addform input[type=url]{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+.addform input[type=number],.addform select{width:100%}
+.urlrow{display:flex;gap:8px;flex-wrap:wrap}.urlrow input{flex:1;min-width:240px}
+.pbtn{font:inherit;border:0;border-radius:8px;padding:8px 14px;cursor:pointer;background:var(--ink);color:var(--bg)}
+.pbtn.sec{background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.msg{font-size:13px;margin-top:6px}.msg.err{color:var(--bad)}.msg.ok{color:var(--good)}
+.btn.x{color:var(--bad)}
+.fav{background:none;border:0;cursor:pointer;font-size:19px;line-height:1;color:var(--muted);padding:0 4px 0 0;vertical-align:middle}
+.fav.on,.favstar{color:#f5b301}
+.fav:hover{transform:scale(1.15)}
+details.card summary{cursor:pointer;font-weight:600}
+.owntbl{margin-top:10px;font-size:13px}.owntbl th,.owntbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
+.owntbl input{width:90px}
+.ownsel{font-size:13px;max-width:100%}
+.tag.bad{background:#fde7e5;color:var(--bad);border-color:transparent}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tag.bad{background:#3a1a17}}
+.own-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.own-grid h3{margin:0 0 6px;font-size:15px}.own-grid ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+.own-grid .flats{font-size:13px;margin:4px 0}
+@media (max-width:720px){
+  .bar-row{grid-template-columns:1fr 90px;grid-template-areas:"n v" "t t"}
+  .bar-row .name{grid-area:n} .bar-row .val{grid-area:v} .bar-row .track{grid-area:t}
+  .cmp th.k{width:30%} .cmp th,.cmp td{padding:8px 6px;font-size:14px}
+  .settings{position:static}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Квартири у Варшаві: порівняння та іпотека</h1>
+  <p class="sub">8 пропозицій з Otodom (Śródmieście та Mokotów). Оберіть дві квартири й налаштуйте іпотеку, щоб побачити щомісячний платіж.</p>
+</header>
+
+<div class="grid kpis" id="kpis"></div>
+
+<div class="card settings" id="settings">
+  <div class="field"><label for="dp">Перший внесок</label>
+    <select id="dp"></select></div>
+  <div class="field rate"><label for="rate">Відсоткова ставка, % річних</label>
+    <div class="rate-row"><input type="range" id="rateR" min="2" max="12" step="0.05"><input type="number" id="rateN" min="0" max="30" step="0.05"></div></div>
+  <div class="field"><label for="term">Термін, років</label>
+    <select id="term"></select></div>
+  <div class="field"><label for="comm">Комісія агентства, %</label>
+    <select id="comm"></select></div>
+  <div class="field"><label for="czdef">Чинш, якщо не вказаний, zł/міс.</label>
+    <select id="czdef"></select></div>
+</div>
+
+<div class="card settings" id="exPanel" style="position:static;margin-top:12px">
+  <div class="field" style="min-width:100%"><b>Дострокове погашення іпотеки</b> <span class="sub">(порожні поля = без погашення)</span></div>
+  <div class="field"><label for="ex_extra">Додатково щомісяця, zł</label><input type="number" id="ex_extra" min="0" step="100" placeholder="0"></div>
+  <div class="field"><label for="ex_lump">Разова сума, zł</label><input type="number" id="ex_lump" min="0" step="1000" placeholder="0"></div>
+  <div class="field"><label for="ex_month">Разова сума на місяць №</label><input type="number" id="ex_month" min="1" max="360" value="12"></div>
+  <div class="field"><label for="ex_mode">Після погашення</label>
+    <select id="ex_mode"><option value="term">Скоротити термін</option><option value="pay">Зменшити платіж</option></select></div>
+  <div class="field"><label for="ex_fee">Комісія банку, %</label>
+    <select id="ex_fee"><option value="0">0% (без комісії)</option><option value="1">1%</option><option value="2">2%</option><option value="3">3%</option></select></div>
+  <p class="hint" style="flex-basis:100%;margin:0">У Польщі банк може брати комісію за дострокове погашення лише в перші 3 роки кредиту, не більше 3% від погашеної суми. У розрахунку вона діє тільки на суми, внесені протягом перших 36 місяців. Точні умови дивіться в договорі з банком.</p>
+</div>
+
+<details class="card" id="ownSettings" style="margin-top:12px">
+  <summary>Вид права власності: припущення про витрати й ставку</summary>
+  <p class="hint">Додаткові витрати (KW, довідки, нотаріус/суд) додаються до готівки на старті, а надбавка збільшує ставку іпотеки для квартир із таким видом права. Значення орієнтовні, уточніть у банку та нотаріуса.</p>
+  <div class="tw"><table class="owntbl" id="ownTbl"></table></div>
+</details>
+
+<h2>Огляд усіх об'єктів</h2>
+<div class="card">
+  <div class="tabs" id="metricTabs"></div>
+  <div class="bars" id="bars"></div>
+  <p class="hint">Клік по рядку: перший вибір — у слот A (синій), наступний — у слот B (помаранчевий).</p>
+</div>
+
+<h2>Порівняння двох квартир</h2>
+<div class="pickers">
+  <div class="card picker A"><div class="sub">Квартира A</div><select id="selA"></select><div style="margin-top:6px"><button class="btn x" id="delA">Видалити зі списку</button></div></div>
+  <div class="card picker B"><div class="sub">Квартира B</div><select id="selB"></select><div style="margin-top:6px"><button class="btn x" id="delB">Видалити зі списку</button></div></div>
+</div>
+<div class="card" style="padding:0"><div class="tw"><table class="cmp" id="cmp"></table></div></div>
+<p class="hint">Зелена підсвітка — кращий показник у парі. Платіж: ануїтет (рівними частинами). Комісія й ремонт — середина діапазону з вашої таблиці. Орендний дохід — оцінка з таблиці, без урахування податків.</p>
+
+<h2>Додати квартиру за посиланням</h2>
+<div class="card">
+  <div class="urlrow">
+    <input type="url" id="f_url" placeholder="https://www.otodom.pl/pl/oferta/...">
+    <button class="pbtn sec" id="btnFetch" type="button">Підтягнути дані з Otodom</button>
+  </div>
+  <div class="msg" id="fmsg"></div>
+  <div class="addform" style="margin-top:12px">
+    <div class="field wide"><label>Назва</label><input type="text" id="f_name" placeholder="напр. Pułaskiego 10"></div>
+    <div class="field"><label>Ціна, zł *</label><input type="number" id="f_price" min="0" step="1000"></div>
+    <div class="field"><label>Площа, м² *</label><input type="number" id="f_area" min="0" step="0.01"></div>
+    <div class="field"><label>Кімнати</label><input type="text" id="f_rooms"></div>
+    <div class="field"><label>Поверх</label><input type="text" id="f_floor" placeholder="напр. 5 / 10"></div>
+    <div class="field"><label>Рік будівництва</label><input type="text" id="f_year"></div>
+    <div class="field"><label>Район</label><input type="text" id="f_dist"></div>
+    <div class="field"><label>Чинш, zł/міс.</label><input type="number" id="f_czynsz" min="0"></div>
+    <div class="field"><label>Стан</label><select id="f_ready"><option value="1">Готова</option><option value="0">Потребує ремонту</option></select></div>
+    <div class="field"><label>Вид права</label><select id="f_own"></select></div>
+    <div class="field"><label>Продавець</label><select id="f_agency"><option value="1">Агентство (є комісія)</option><option value="0">Власник (без комісії)</option></select></div>
+    <div class="field"><label>Ремонт від, zł</label><input type="number" id="f_rmin" min="0" step="5000" value="0"></div>
+    <div class="field"><label>Ремонт до, zł</label><input type="number" id="f_rmax" min="0" step="5000" value="0"></div>
+    <div class="field"><label>Оренда від, zł/міс.</label><input type="number" id="f_ormin" min="0" step="100"></div>
+    <div class="field"><label>Оренда до, zł/міс.</label><input type="number" id="f_ormax" min="0" step="100"></div>
+    <div class="field wide"><label>Особливості</label><input type="text" id="f_feat"></div>
+    <div class="wide"><button class="pbtn" id="btnAdd" type="button">Додати до порівняння</button>
+      <span class="msg" id="amsg"></span></div>
+  </div>
+  <p class="hint">Автозаповнення працює через PHP-сервер (<code>php -S localhost:8000</code>) і лише для посилань Otodom. Оренду та ремонт Otodom не дає, вкажіть їх самі, якщо потрібен розрахунок. Додані квартири зберігаються в цьому браузері.</p>
+</div>
+
+<h2>Усі квартири</h2>
+<div class="hint" id="hiddenBar" style="margin:-4px 0 8px"></div>
+<div class="card" style="padding:0"><div class="tw"><table class="all" id="all"></table></div></div>
+
+<h2>Аналіз виду права власності</h2>
+<div class="grid own-grid" id="ownAnalysis"></div>
+
+<h2>Висновки з вашої таблиці</h2>
+<div class="grid verdicts" id="verdicts"></div>
+</div>
+
+<script>
+// ---------- ДАНІ (з CSV) ----------
+const P = [
+ {id:'kro', name:'Królewska 43', area_n:'Śródmieście Północne', loc:'ul. Królewska 43', dist:'Śródmieście', price:740000, area:36.2, rooms:'2 окремі', floor:'8 / 10', lift:'2 ліфти', year:'1964', ready:false, cond:'Потребує капремонту', seller:'Агентство (Finest Estate)', agency:true, czynsz:null, reno:[60000,100000], rent:[3600,4200], metro:'3 хв до Świętokrzyska (M1+M2)', feat:'Балкон з видом на Ogród Saski, підвал у ціні, паркет «ялинкою»', url:''},
+ {id:'wol', name:'Wołoska 70', loc:'ul. Wołoska 70', dist:'Mokotów', price:718000, area:34.5, rooms:'2 (вітальня з анексом + спальня)', floor:'4 / 4 (без ліфта)', lift:'без ліфта', year:'1970', ready:true, cond:'Готова (дизайнерський ремонт)', seller:'Агентство (Home Makers)', agency:true, czynsz:665, reno:[0,0], rent:[3500,4100], metro:'700 м до Racławicka', feat:'Дубова «ялинка», балкон, підвал, меблі та техніка', url:'https://www.otodom.pl/pl/oferta/metromokotowdo-zamieszkaniagotowiec-inwestycyjny-ID4DP5H'},
+ {id:'lan', name:'Oskara Langego 6', loc:'ul. Oskara Langego 6', dist:'Mokotów', price:715000, area:42.94, rooms:'2 окремі', floor:'10 / 10 (ліфт)', lift:'ліфт', year:'1975', ready:true, cond:'Готова (капремонт 2022)', seller:'Агентство (DreamNEST)', agency:true, czynsz:900, reno:[0,0], rent:[3400,3900], metro:'Трамваї/автобуси, виїзд у центр', feat:'Панорамний балкон, komórka lokatorska, нові мережі, сертифікат A', url:'https://www.otodom.pl/pl/oferta/mieszkanie-42-94-m-warszawa-ID4Cvnt'},
+ {id:'son', name:'Sonaty', loc:'ul. Sonaty', dist:'Mokotów', price:699000, area:54.44, rooms:'2 (вітальня з анексом + спальня)', floor:'11 / 11 (ліфт до 10-го)', lift:'ліфт до 10-го', year:'1976', ready:false, cond:'Потребує капремонту', seller:'Агентство (The Estate Warsaw)', agency:true, czynsz:815, reno:[70000,110000], rent:[3800,4500], metro:'200 м до Służew', feat:'Найбільша площа та найнижча ціна/м², східна сторона', url:'https://www.otodom.pl/pl/oferta/2-pokoje-z-widokiem-do-remontu-200-m-od-metra-ID4DilO'},
+ {id:'g2', name:'Grzybowska 6/10 (2-к)', loc:'ul. Grzybowska 6/10', dist:'Śródmieście', price:699000, area:38.8, rooms:'2 окремі', floor:'7 / 15 (ліфт)', lift:'ліфт', year:'1968', ready:true, cond:'Готова (з меблями)', seller:'Агентство', agency:true, czynsz:900, reno:[0,0], rent:[3800,4300], metro:'4 хв Hala Mirowska, 7 хв Rondo ONZ', feat:'Французький балкон, підвал, окрема кухня, меблі та техніка', url:'https://www.otodom.pl/pl/oferta/2-pokoje-w-scislym-centrum-38-8-m-7-pietro-ID4DSQm'},
+ {id:'bac', name:'Bacha', loc:'ul. Bacha', dist:'Mokotów', price:690000, area:45.7, rooms:'2 окремі', floor:'11 / 11 (2 ліфти)', lift:'2 ліфти', year:'1970-ті', ready:true, cond:'Готова (з ремонтом)', seller:'Агентство (Freedom)', agency:true, czynsz:null, reno:[0,0], rent:[3200,3700], metro:'500–700 м до Służew / Wilanowska', feat:'Останній поверх, вікна в кухні та ванній, зелений район', url:'https://www.otodom.pl/pl/oferta/warszawa-mokotow-ul-bacha-mieszkanie-45-7-m2-ID4DML8'},
+ {id:'g1', name:'Grzybowska 6/10 (1-к)', loc:'ul. Grzybowska 6/10', dist:'Śródmieście', price:539000, area:26.7, rooms:'1 (зі спальною зоною)', floor:'15 / 15 (ліфт)', lift:'ліфт', year:'1968', ready:true, cond:'Готова (з меблями)', seller:'Власник (0% комісії)', agency:false, czynsz:600, reno:[0,0], rent:[2600,3100], metro:'4 хв до Rondo ONZ (M2)', feat:'Вид на PKiN, меблі та техніка', url:'https://www.otodom.pl/pl/oferta/grzybowska-15-pietro-widok-na-pkin-bezposrednio-ID4CmYV'},
+ {id:'jp2', name:'Al. Jana Pawła II 20', loc:'Al. Jana Pawła II 20', dist:'Śródmieście', price:499000, area:27.42, rooms:'2 (вітальня + спальня)', floor:'10 / 15 (6 ліфтів)', lift:'6 ліфтів', year:'1972', ready:false, cond:'Потребує капремонту', seller:'Агентство (Best View)', agency:true, czynsz:550, reno:[55000,85000], rent:[3200,3700], metro:'1 хв до Rondo ONZ (M2)', feat:'Метро біля будинку, панорама центру, французький балкон, підвал 1,57 м²', url:'https://www.otodom.pl/pl/oferta/2-pokoje-m2-rondo-onz-widok-na-centrum-do-wlasnej-aranzacji-ID4DYsf'},
+ {id:'gro', fresh:1, name:'Grzybowska (28 м²)', loc:'ul. Grzybowska', dist:'Wola (Mirów)', price:470000, area:28, rooms:'2 (вітальня з анексом + спальня)', floor:'10 (поверховість не вказана)', lift:'', year:'1970', ready:true, cond:'Готова (повністю мебльована)', seller:'Власник (прямий)', agency:false, czynsz:650, reno:[0,0], rent:[null,null], metro:'5 хв пішки до Rondo ONZ (M2)', feat:'Меблі та техніка, найнижча ціна серед усіх варіантів', url:'https://www.otodom.pl/pl/oferta/sprzedam-mieszkanie-przy-ul-grzybowskiej-ID4E0rH'},
+ {id:'gjc', fresh:1, name:'Grójecka 130', loc:'ul. Grójecka 130', dist:'Ochota', price:584000, area:37, rooms:'2 (окрема кухня)', floor:'9 / 10 (ліфт)', lift:'ліфт', year:'1971', ready:true, cond:'Готова (з меблями)', seller:'Власник (прямий)', agency:false, czynsz:600, reno:[0,0], rent:[null,null], metro:'Зупинки під будинком, ~10–15 хв до центру, метро Pole Mokotowskie', feat:'Підвал, окрема кухня, меблі й техніка. Вільна з 15.12.2026', url:'https://www.otodom.pl/pl/oferta/przytulne-2-pokoje-37-m-przy-ul-grojeckiej-130-ochota-ID4E0Ba'},
+ {id:'ksa', fresh:1, name:'Ksawerów (кавалерка)', loc:'ul. Ksawerów', dist:'Mokotów', price:589000, area:31.4, rooms:'1 (кавалерка)', floor:'6 / 10 (ліфт)', lift:'ліфт', year:'1989', ready:true, cond:'Готова (з меблями)', seller:'Власник (прямий)', agency:false, czynsz:null, reno:[0,0], rent:[null,null], metro:'Кілька хв пішки до Wierzbno', feat:'Балкон 6 м² з панорамою, вбудовані шафи, техніка. Найновіший будинок (1989)', url:'https://www.otodom.pl/pl/oferta/kawalerka-31-4m2-mokotow-metro-wierzbno-balkon-panoramiczny-widok-ID4DV4I'},
+ {id:'dyb', fresh:1, name:'Dybowskiego 3 (Ursynów)', loc:'ul. Benedykta Dybowskiego 3', dist:'Ursynów', price:650000, area:48.3, rooms:'2 (двосторонні)', floor:'7 / 10 (ліфт)', lift:'ліфт', year:'1978', ready:false, cond:'Потребує ремонту', seller:'Власник (прямий)', agency:false, czynsz:800, reno:[62000,98000], rent:[null,null], metro:'Ursynów-Centrum (SMB Imielim); метро в оголошенні не вказано', feat:'Великий балкон, підвал і komórka lokatorska, схід/захід, закритий паркінг', url:'https://www.otodom.pl/pl/oferta/mieszkanie-na-ursynowie-48-3-m-ID4DNXm'},
+ {id:'nis', fresh:1, name:'Niska 3 (Muranów)', loc:'ul. Niska 3', dist:'Śródmieście (Muranów)', price:649000, area:28.1, rooms:'1 (кавалерка)', floor:'10 / 11 (ліфт)', lift:'ліфт', year:'1968', ready:true, cond:'Готова (після ремонту, з меблями)', seller:'Власник (прямий)', agency:false, czynsz:450, reno:[0,0], rent:[null,null], metro:'Трамвай Stawki (за заголовком оголошення)', feat:'Нові електрика, труби й радіатор, меблі та техніка', url:'https://www.otodom.pl/pl/oferta/srodmiescie-po-remoncie-generalnym-kawalerka-tramwaj-stawki-ID4DMJb'},
+];
+const store = {
+  get(k,d){try{return JSON.parse(localStorage.getItem('propertio.'+k))??d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('propertio.'+k,JSON.stringify(v))}catch(e){}}
+};
+let LINKS = store.get('links',{});
+let USER = store.get('user',[]);
+let CZOVR = store.get('czovr',{});
+function prep(p){p.ppm=p.price/p.area; p.rentMid=(p.rent&&p.rent[0]!=null&&p.rent[1]!=null)?(p.rent[0]+p.rent[1])/2:null; return p}
+P.forEach(prep);
+USER.forEach(u=>P.push(prep(u)));
+const ALL = [...P];
+let HIDDEN = store.get('hidden',[]);
+const FAV = new Set(store.get('fav',[]));
+function favBtn(p){
+  const on=FAV.has(p.id);
+  return `<button class="fav ${on?'on':''}" data-fav="${p.id}" title="${on?'Прибрати з улюблених':'Додати в улюблені'}" aria-pressed="${on}">${on?'★':'☆'}</button>`;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-fav]'); if(!b)return;
+  e.stopPropagation();
+  const id=b.dataset.fav;
+  FAV.has(id)?FAV.delete(id):FAV.add(id);
+  store.set('fav',[...FAV]);
+  renderPickers(); update();
+});
+for(let i=P.length-1;i>=0;i--) if(HIDDEN.includes(P[i].id)) P.splice(i,1);
+const byId = id => P.find(p=>p.id===id);
+const urlOf = p => LINKS[p.id]||p.url||'';
+const OWN_BASE = {kro:'unknown', wol:'full', lan:'coop_kw', son:'coop_kw', g2:'coop_nokw', bac:'unknown', g1:'full', jp2:'coop_nokw', gro:'full', gjc:'full', ksa:'full', dyb:'coop_nokw', nis:'coop_kw'};
+const OWN_NOTE_NEW = true;
+const OWN_NOTE = {
+  wol:'Оголошення: «pełna własność z KW», проблем із кредитом немає.',
+  lan:'Otodom: кооперативне власницьке право; KW згадано в заголовку оголошення. Підтвердіть, що KW існує.',
+  son:'Оголошення: «spółdzielcze własnościowe prawo do lokalu z księgą wieczystą», ґрунт врегульований, можна купити в кредит.',
+  jp2:'Оголошення: «spółdzielcze własnościowe prawo do lokalu — brak KW (з можливістю заснування)». Для іпотеки банк вимагатиме створити KW.',
+  kro:'У CSV вид права не вказано. Запитайте агента (Finest Estate).',
+  g1:'Оголошення: «pełna własność z księgą wieczystą», прямий продаж від власника без комісії.',
+  gro:'Otodom: повна власність; про KW в описі не сказано, підтвердьте.',
+  gjc:'Оголошення: «pełna własność».',
+  ksa:'Otodom: повна власність.',
+  dyb:'Оголошення: кооператив SMB Imielim, KW немає, «можна створити». Для іпотеки банк вимагатиме KW.',
+  nis:'Оголошення: кооперативне право з KW без обтяжень, ґрунт врегульований, можна в кредит, можливе виокремлення власності.',
+  g2:'Оголошення: «spółdzielcze własnościowe prawo do lokalu», KW можна створити (зараз немає). Для іпотеки банк вимагатиме KW.',
+  bac:'Ні в CSV, ні в оголошенні вид права не вказано. Запитайте агента (Freedom).'
+};
+P.forEach(p=>{p.own=OWN_BASE[p.id]||'unknown'; p.own_note=OWN_NOTE[p.id]||'';});
+const OWN = {
+  full:{l:'Повна власність (з KW)', short:'Повна власність', risk:0, cost:0, prem:0, cls:'ok',
+    d:'Найсильніший титул: квартира у вашій власності (odrębna własność) із книгою KW. Найпростіше брати іпотеку, продавати й заповідати.',
+    li:['Перевірте KW (розділи III–IV: сервітути, іпотеки, вимоги)','Звичайний нотаріальний акт і запис у KW']},
+  coop_kw:{l:'Кооперативне власницьке право з KW', short:'Кооператив + KW', risk:1, cost:500, prem:0, cls:'ok',
+    d:'Spółdzielcze własnościowe prawo do lokalu: обмежене речове право, не повна власність. Його можна продавати, успадковувати й закладати під іпотеку, а з KW банки зазвичай кредитують без проблем.',
+    li:['Візьміть довідку з кооперативу: немає боргів по чиншу та фондах','Перевірте право на ґрунт у KW кооперативу','Можна перетворити на повну власність за заявою; витрати на нотаріуса і суд']},
+  coop:{l:'Кооперативне власницьке право (KW не вказано)', short:'Кооператив (KW?)', risk:2, cost:1000, prem:0, cls:'warn',
+    d:'Кооперативне право, але в оголошенні не сказано, чи є KW. Це треба з\'ясувати до завдатку.',
+    li:['Уточніть, чи є KW для квартири','Якщо KW немає, дивіться пункт «Без KW»']},
+  coop_nokw:{l:'Кооперативне власницьке право без KW', short:'Кооператив без KW', risk:3, cost:1500, prem:0, cls:'bad',
+    d:'Спірне місце для іпотеки: банк зазвичай вимагає створити KW до виплати кредиту. Це додатковий час, витрати і ризик затримки угоди.',
+    li:['Попросіть продавця створити KW до підписання угоди','Закладіть в завдаток умови про термін оформлення KW','Перевірте в банку, чи кредитує такий об\'єкт']},
+  perp:{l:'Вічне користування (użytkowanie wieczyste)', short:'Вічне користування', risk:1, cost:0, prem:0, cls:'warn',
+    d:'Будинок стоїть на землі міста/держави, власник платить щорічну плату за землю та може мати обмеження терміну.',
+    li:['Дізнайтеся розмір щорічної плати та залишок терміну','Є можливість перетворити на власність за плату']},
+  unknown:{l:'Не вказано', short:'Не вказано', risk:null, cost:0, prem:0, cls:'',
+    d:'Вид права в даних не вказано. Витрати та ставка не змінюються, але це треба з\'ясувати.',
+    li:['Запитайте в агента: повна власність чи кооперативне право, є KW чи ні']},
+};
+const OWN_KEYS = Object.keys(OWN);
+let OWNCFG = store.get('owncfg',{});      // {type:{cost,prem}}
+let OWNSEL = store.get('ownsel',{});      // {flatId:type}
+const ownOf = p => OWNSEL[p.id]||p.own||'unknown';
+const ownCfg = t => ({...OWN[t], ...(OWNCFG[t]||{})});
+
+
+const VERDICTS = [
+ ['🏆 Найнижча ціна за м² та найбільша площа','son','12 840 zł/м², 54,4 м², 200 м до метро. Потрібен капремонт.'],
+ ['🥇 Найкраща готова за балансом ціна/якість','bac','15 098 zł/м², 45,7 м², останній поверх, 2 ліфти, біля метро.'],
+ ['💎 Найкраща готова інвестиція в центрі','g2','18 015 zł/м² за готову 2-к у Śródmieście, висока оренда.'],
+ ['🔑 Найкраща компактна без ремонту','g1','Прямий продаж від власника, 0% комісії, вид на PKiN.'],
+ ['💰 Мінімальний бюджет (до 500 000 zł)','jp2','Єдина дешевша за 500 тис., метро біля будинку, потрібен ремонт.'],
+ ['✨ Преміальний дизайн «під ключ»','wol','Дизайнерський ремонт, меблі й техніка, низький чинш 665 zł.'],
+];
+
+// ---------- УТИЛІТИ ----------
+const $ = s => document.querySelector(s);
+const esc = t => String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(n).toLocaleString('uk-UA').replace(/ /g,' ');
+const zl = n => fmt(n)+' zł';
+function monthly(loan, ratePct, years){
+  const n = years*12, r = ratePct/100/12;
+  if(loan<=0) return 0;
+  return r===0 ? loan/n : loan*r/(1-Math.pow(1+r,-n));
+}
+const CZ_OPTS=[0,300,400,500,600,700,800,900,1000,1200,1500];
+const S = {favOnly:false, czDef:0, ex:{extra:0,lump:0,lumpM:12,mode:'term',fee:0}, dp:20, rate:6.5, term:30, comm:2.5, metric:'price', A:'bac', B:'g2'};
+
+function amort(loan, ratePct, years, o){
+  const N=years*12, r=ratePct/100/12, base=monthly(loan,ratePct,years);
+  const baseInterest=base*N-loan;
+  let bal=loan, pay=base, interest=0, fee=0, m=0, last=base;
+  while(bal>0.005 && m<N){
+    m++;
+    const i=bal*r; interest+=i;
+    const princ=Math.min(bal,pay-i); bal-=princ; last=i+princ;
+    let over=0;
+    if(bal>0){
+      over+=Math.min(bal,o.extra||0);
+      if(o.lump>0 && m===o.lumpM) over+=Math.min(bal-over,o.lump);
+      bal-=over; last+=over;
+      if(m<=36) fee+=over*(o.fee||0)/100;
+      if(over>0 && o.mode==='pay' && bal>0.005 && N-m>0) pay=monthly(bal,ratePct,(N-m)/12);
+    }
+  }
+  return {months:m, interest, fee, base, payAfter:(o.mode==='pay'?pay:base), baseInterest,
+          saved:baseInterest-interest, netSaved:baseInterest-interest-fee, monthsSaved:N-m};
+}
+const exActive = () => (S.ex.extra>0||S.ex.lump>0);
+const fmtTerm = m => {const y=Math.floor(m/12), r=m%12; return (y?y+' р. ':'')+(r?r+' міс.':(y?'':'0'))};
+function czEff(p){
+  if(CZOVR[p.id]!=null) return {v:CZOVR[p.id], src:'own'};
+  if(p.czynsz!=null) return {v:p.czynsz, src:'listing'};
+  return {v:S.czDef, src:S.czDef>0?'default':'none'};
+}
+const czLabel = p => {const c=czEff(p); return c.src==='listing'?zl(c.v):c.src==='none'?'не вказано':'~'+zl(c.v)};
+function calc(p){
+  const down = p.price*S.dp/100;
+  const loan = p.price-down;
+  const o = ownCfg(ownOf(p));
+  const effRate = S.rate + (o.prem||0);
+  const pay = monthly(loan,effRate,S.term);
+  const total = pay*S.term*12;
+  const comm = p.agency ? p.price*S.comm/100 : 0;
+  const reno = (p.reno[0]+p.reno[1])/2;
+  const cz = czEff(p).v;
+  const ea=amort(loan,effRate,S.term,S.ex);
+  return {ea, down, loan, pay, effRate, ownCost:o.cost||0, interest: total-loan, total, comm, reno, cz,
+          monthAll: pay+cz, cash: down+comm+reno+(o.cost||0), net: p.rentMid==null?null:p.rentMid-pay-cz};
+}
+
+// ---------- KPI ----------
+function renderKpis(){
+  const min=(k)=>P.reduce((a,b)=>a[k]<b[k]?a:b), max=(k)=>P.reduce((a,b)=>a[k]>b[k]?a:b);
+  const cheap=min('price'), ppm=min('ppm'), big=max('area');
+  const avg=P.reduce((s,p)=>s+p.ppm,0)/P.length;
+  const ready=P.filter(p=>p.ready).length;
+  $('#kpis').innerHTML = [
+   ['Найдешевша', zl(cheap.price), cheap.name],
+   ['Найнижча ціна/м²', zl(ppm.ppm)+'/м²', ppm.name],
+   ['Найбільша площа', big.area.toString().replace('.',',')+' м²', big.name],
+   ['Середня ціна/м²', zl(avg)+'/м²', `${ready} готові · ${P.length-ready} під ремонт`],
+  ].map(([l,v,s])=>`<div class="card kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+}
+
+// ---------- ПАРАМЕТРИ ----------
+function initSettings(){
+  $('#dp').innerHTML=[10,15,20,25,30,40,50].map(v=>`<option value="${v}" ${v===S.dp?'selected':''}>${v}%</option>`).join('');
+  $('#term').innerHTML=[10,15,20,25,30,35].map(v=>`<option value="${v}" ${v===S.term?'selected':''}>${v}</option>`).join('');
+  $('#czdef').innerHTML=CZ_OPTS.map(v=>`<option value="${v}" ${v===S.czDef?'selected':''}>${v?v+' zł':'не враховувати'}</option>`).join('');
+  $('#czdef').onchange=e=>{S.czDef=+e.target.value;update()};
+  $('#comm').innerHTML=[0,1,2,2.5,3].map(v=>`<option value="${v}" ${v===S.comm?'selected':''}>${v}%</option>`).join('');
+  $('#rateR').value=S.rate; $('#rateN').value=S.rate;
+  $('#dp').onchange=e=>{S.dp=+e.target.value;update()};
+  $('#term').onchange=e=>{S.term=+e.target.value;update()};
+  $('#comm').onchange=e=>{S.comm=+e.target.value;update()};
+  $('#rateR').oninput=e=>{S.rate=+e.target.value;$('#rateN').value=S.rate;update()};
+  $('#rateN').oninput=e=>{const v=parseFloat(e.target.value);if(!isNaN(v)){S.rate=v;$('#rateR').value=v;update()}};
+}
+
+// ---------- СТОВПЧИКИ ----------
+const METRICS = {
+  price:{l:'Ціна', f:p=>p.price, fmt:v=>zl(v)},
+  ppm:{l:'Ціна за м²', f:p=>p.ppm, fmt:v=>zl(v)+'/м²'},
+  area:{l:'Площа', f:p=>p.area, fmt:v=>v.toFixed(1).replace('.',',')+' м²'},
+  pay:{l:'Платіж/міс.', f:p=>calc(p).pay, fmt:v=>zl(v)},
+  cash:{l:'Готівка на старті', f:p=>calc(p).cash, fmt:v=>zl(v)},
+  rent:{l:'Оренда (оцінка)', f:p=>p.rentMid, fmt:v=>zl(v)},
+};
+function renderTabs(){
+  $('#metricTabs').innerHTML=Object.entries(METRICS).map(([k,m])=>`<button class="tab" data-k="${k}" aria-pressed="${k===S.metric}">${m.l}</button>`).join('');
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.metric=b.dataset.k;renderTabs();renderBars()});
+}
+function renderBars(){
+  const m=METRICS[S.metric];
+  const rows=P.map(p=>({p,v:m.f(p)})).filter(r=>r.v!=null).sort((a,b)=>a.v-b.v);
+  const mx=Math.max(1,...rows.map(r=>r.v));
+  $('#bars').innerHTML=rows.map(({p,v})=>`
+    <div class="bar-row ${p.id===S.A?'selA':''} ${p.id===S.B?'selB':''}" data-id="${p.id}">
+      <div class="name" title="${p.name}">${FAV.has(p.id)?'<span class="favstar">★</span> ':''}${p.name}</div>
+      <div class="track"><div class="fill" style="width:${v/mx*100}%"></div></div>
+      <div class="val">${m.fmt(v)}</div></div>`).join('');
+  document.querySelectorAll('.bar-row').forEach(r=>r.onclick=()=>pick(r.dataset.id));
+}
+let nextSlot='A';
+function pick(id){
+  if(nextSlot==='A'){S.A=id}else{S.B=id}
+  nextSlot = nextSlot==='A'?'B':'A';
+  $('#selA').value=S.A; $('#selB').value=S.B;
+  update();
+  $('#cmp').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ---------- ПОРІВНЯННЯ ----------
+function renderPickers(){
+  const opts=P.map(p=>`<option value="${p.id}">${FAV.has(p.id)?'★ ':''}${p.name} — ${zl(p.price)}</option>`).join('');
+  $('#selA').innerHTML=opts; $('#selB').innerHTML=opts;
+  $('#selA').value=S.A; $('#selB').value=S.B;
+  $('#selA').onchange=e=>{S.A=e.target.value;update()};
+  $('#selB').onchange=e=>{S.B=e.target.value;update()};
+  $('#delA').onclick=()=>removeFlat(S.A); $('#delB').onclick=()=>removeFlat(S.B);
+}
+const rentTxt = p => p.rentMid==null ? '—' : `${zl(p.rent[0])} – ${zl(p.rent[1])}`;
+function linkCell(p){
+  const u=urlOf(p);
+  return (u?`<a href="${esc(u)}" target="_blank" rel="noopener">Відкрити оголошення ↗</a> `:'— ')+`<button class="btn" data-link="${p.id}">${u?'✎':'+ додати посилання'}</button>`;
+}
+function czCell(p){
+  const own=CZOVR[p.id], l=p.czynsz!=null, d=S.czDef;
+  const opts=CZ_OPTS.map(v=>`<option value="${v}" ${own===v?'selected':''}>${v?zl(v):'0 zł'}</option>`).join('');
+  const dflt=l?`за оголошенням (${zl(p.czynsz)})`:`${d?'за замовчуванням ('+zl(d)+')':'не вказано'}`;
+  return `<select class="ownsel" data-cz="${p.id}"><option value="" ${own==null?'selected':''}>${dflt}</option>${opts}</select>`
+    +`<div class="feat" style="margin-top:4px">${l?'Чинш вказаний в оголошенні.':'В оголошенні чинш не вказаний.'}</div>`;
+}
+function bindCz(root){
+  root.querySelectorAll('[data-cz]').forEach(el=>el.onchange=()=>{
+    if(el.value==='')delete CZOVR[el.dataset.cz];else CZOVR[el.dataset.cz]=+el.value;
+    store.set('czovr',CZOVR); update();
+  });
+}
+function ownCell(p){
+  const t=ownOf(p), o=ownCfg(t);
+  return `<select class="ownsel" data-own="${p.id}">${OWN_KEYS.map(k=>`<option value="${k}" ${k===t?'selected':''}>${OWN[k].l}</option>`).join('')}</select>`
+   +(p.own_note?`<div class="feat" style="margin-top:4px">${esc(p.own_note)}</div>`:'');
+}
+function bindOwnSel(root){
+  root.querySelectorAll('[data-own]').forEach(el=>el.onchange=()=>{
+    OWNSEL[el.dataset.own]=el.value; store.set('ownsel',OWNSEL); update();
+  });
+}
+function renderCompare(){
+  const a=byId(S.A), b=byId(S.B), ca=calc(a), cb=calc(b);
+  // row: [label, valA, valB, compareA, compareB, better('low'|'high'|null), html fn]
+  const num=(label,va,vb,f,better,big)=>({label,va,vb,f,better,big});
+  const rows=[
+   {sec:'Основне'},
+   num('Ціна',a.price,b.price,zl,'low',1),
+   num('Площа',a.area,b.area,v=>v.toFixed(1).replace('.',',')+' м²','high'),
+   num('Ціна за м²',a.ppm,b.ppm,v=>zl(v)+'/м²','low'),
+   {label:'Район',va:a.dist,vb:b.dist},
+   {label:'Кімнати',va:a.rooms,vb:b.rooms},
+   {label:'Поверх',va:a.floor,vb:b.floor},
+   {label:'Рік будівництва',va:a.year,vb:b.year},
+   {label:'Стан',va:`<span class="tag ${a.ready?'ok':'warn'}">${a.cond}</span>`,vb:`<span class="tag ${b.ready?'ok':'warn'}">${b.cond}</span>`},
+   {label:'Метро / транспорт',va:a.metro,vb:b.metro},
+   {label:'Продавець',va:a.seller,vb:b.seller},
+   {label:'Особливості',va:`<span class="feat">${a.feat}</span>`,vb:`<span class="feat">${b.feat}</span>`},
+   {sec:'Вид права власності'},
+   {label:'Вид права',va:ownCell(a),vb:ownCell(b)},
+   num('Правовий ризик (0 — мінімальний)',OWN[ownOf(a)].risk,OWN[ownOf(b)].risk,v=>v==null?'не визначено':['0 · низький','1 · помірний','2 · потребує перевірки','3 · високий'][v],'low'),
+   num('Витрати на оформлення права',ca.ownCost,cb.ownCost,v=>v?zl(v):'0 zł','low'),
+   {sec:`Іпотека: внесок ${S.dp}%, ${S.rate.toString().replace('.',',')}% річних, ${S.term} р.`},
+   num('Перший внесок',ca.down,cb.down,zl,'low'),
+   num('Сума кредиту',ca.loan,cb.loan,zl,'low'),
+   num('Ставка з урахуванням права',ca.effRate,cb.effRate,v=>v.toFixed(2).replace('.',',')+'%','low'),
+   num('Платіж за іпотеку / міс.',ca.pay,cb.pay,zl,'low',1),
+   num('Чинш у розрахунку / міс.',ca.cz,cb.cz,zl,'low'),
+   {label:'Свій чинш',va:czCell(a),vb:czCell(b)},
+   num('Разом на місяць (іпотека + чинш)',ca.monthAll,cb.monthAll,zl,'low',1),
+   num('Переплата за відсотками',ca.interest,cb.interest,zl,'low'),
+   num('Загалом виплатите банку',ca.total,cb.total,zl,'low'),
+   ...(exActive()?[
+   {sec:`Дострокове погашення${S.ex.extra>0?': +'+fmt(S.ex.extra)+' zł/міс.':''}${S.ex.lump>0?', '+fmt(S.ex.lump)+' zł на міс. №'+S.ex.lumpM:''}`},
+   num('Термін кредиту',ca.ea.months,cb.ea.months,fmtTerm,'low'),
+   num('Скорочення терміну',ca.ea.monthsSaved,cb.ea.monthsSaved,fmtTerm,'high'),
+   num(S.ex.mode==='pay'?'Платіж після погашення':'Базовий платіж',ca.ea.payAfter,cb.ea.payAfter,zl,'low'),
+   num('Переплата за відсотками (з погашенням)',ca.ea.interest,cb.ea.interest,zl,'low'),
+   num('Економія на відсотках',ca.ea.saved,cb.ea.saved,zl,'high'),
+   num('Комісія за дострокове погашення',ca.ea.fee,cb.ea.fee,zl,'low'),
+   num('Чиста економія (мінус комісія)',ca.ea.netSaved,cb.ea.netSaved,zl,'high',1),
+   ]:[{sec:'Дострокове погашення'},{label:'',va:'<span class="feat">Вкажіть суму вище, щоб побачити економію.</span>',vb:''}]),
+   {sec:'Стартові витрати'},
+   num(`Комісія агентства (${S.comm}%)`,ca.comm,cb.comm,zl,'low'),
+   num('Ремонт (середня оцінка)',ca.reno,cb.reno,v=>v?zl(v):'не потрібен','low'),
+   num('Готівка на старті',ca.cash,cb.cash,zl,'low',1),
+   {sec:'Оренда (оцінка з таблиці)'},
+   {label:'Оренда / міс.',va:rentTxt(a),vb:rentTxt(b)},
+   num('Оренда мінус платіж і чинш',ca.net,cb.net,v=>v==null?'—':`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':'−'}${zl(Math.abs(v))}</span>`,'high'),
+   num('Валова дохідність / рік',a.rentMid==null?null:a.rentMid*12/a.price*100,b.rentMid==null?null:b.rentMid*12/b.price*100,v=>v==null?'—':v.toFixed(2).replace('.',',')+'%','high'),
+  ];
+  let html=`<tr><th class="k"></th><th style="color:var(--a)">A · ${a.name} ${favBtn(a)}</th><th style="color:var(--b)">B · ${b.name} ${favBtn(b)}</th></tr>`;
+  for(const r of rows){
+    if(r.sec){html+=`<tr class="sec"><th colspan="3">${r.sec}</th></tr>`;continue}
+    let ca_='',cb_='',ta,tb;
+    if(r.f){
+      const nv=v=>v==null?-1:v;
+      let wa=false,wb=false;
+      if(r.va!=null&&r.vb!=null&&r.va!==r.vb){
+        const aBetter = r.better==='low' ? r.va<r.vb : r.va>r.vb;
+        wa=aBetter; wb=!aBetter;
+      }
+      ca_=wa?'win':''; cb_=wb?'win':'';
+      ta=r.f(r.va); tb=r.f(r.vb);
+      if(r.big){ta=`<span class="big">${ta}</span>`;tb=`<span class="big">${tb}</span>`}
+      ta=`<b style="font-weight:inherit">${ta}</b>`; tb=`<b style="font-weight:inherit">${tb}</b>`;
+    } else {ta=r.va;tb=r.vb}
+    html+=`<tr><th class="k">${r.label}</th><td class="${ca_}">${ta}</td><td class="${cb_}">${tb}</td></tr>`;
+  }
+  html+=`<tr><th class="k">Оголошення</th><td>${linkCell(a)}</td><td>${linkCell(b)}</td></tr>`;
+  $('#cmp').innerHTML=html;
+  bindLinkBtns($('#cmp')); bindOwnSel($('#cmp')); bindCz($('#cmp'));
+}
+
+// ---------- ТАБЛИЦЯ ----------
+let sortK='price', sortDir=1;
+const COLS=[
+ ['name','Об\'єкт',p=>p.name,p=>favBtn(p)+p.name+(p.fresh?' <span class="tag ok">нова</span>':'')],
+ ['dist','Район',p=>p.dist,p=>p.dist],
+ ['price','Ціна',p=>p.price,p=>zl(p.price)],
+ ['area','м²',p=>p.area,p=>p.area.toFixed(1).replace('.',',')],
+ ['ppm','zł/м²',p=>p.ppm,p=>fmt(p.ppm)],
+ ['year','Рік',p=>parseInt(p.year),p=>p.year],
+ ['ready','Стан',p=>p.ready?1:0,p=>p.ready?'готова':'ремонт'],
+ ['czynsz','Чинш',p=>czEff(p).v,p=>czLabel(p)],
+ ['pay','Іпотека/міс.',p=>calc(p).pay,p=>zl(calc(p).pay)],
+ ['monthAll','З чиншем',p=>calc(p).monthAll,p=>zl(calc(p).monthAll)],
+ ['cash','Готівка на старті',p=>calc(p).cash,p=>zl(calc(p).cash)],
+ ['own','Право',p=>OWN[ownOf(p)].risk??9,p=>{const o=OWN[ownOf(p)];return `<span class="tag ${o.cls}">${o.short}</span>`}],
+ ['saved','Чиста економія',p=>exActive()?calc(p).ea.netSaved:0,p=>exActive()?zl(calc(p).ea.netSaved)+' · '+fmtTerm(calc(p).ea.months):'—'],
+ ['link','Посилання',null,p=>linkCell(p)],
+ ['pick','Порівняти',null,p=>`<button class="btn a" data-a="${p.id}">A</button> <button class="btn b" data-b="${p.id}">B</button> <button class="btn x" data-del="${p.id}" title="Видалити зі списку">✕</button>`],
+];
+function renderAll(){
+  const col=COLS.find(c=>c[0]===sortK)||COLS[2];
+  const rows=P.filter(p=>!S.favOnly||FAV.has(p.id)).sort((x,y)=>{const a=col[2]?col[2](x):0,b=col[2]?col[2](y):0;return (a>b?1:a<b?-1:0)*sortDir});
+  $('#all').innerHTML=`<thead><tr>${COLS.map(c=>`<th data-k="${c[0]}">${c[1]}${c[0]===sortK?(sortDir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead>
+   <tbody>${rows.map(p=>`<tr>${COLS.map((c,i)=>`<td class="${i===0?'n':''}">${c[3](p)}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  document.querySelectorAll('#all th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; if(k==='pick'||k==='link')return;
+    if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=1}
+    renderAll();
+  });
+  $('#hiddenBar').innerHTML=`<label><input type="checkbox" id="favOnly" ${S.favOnly?'checked':''}> Лише улюблені ★ (${FAV.size})</label>`
+    +(HIDDEN.length?` &nbsp; Приховано квартир: ${HIDDEN.length}. <button class="btn" id="btnRestore">Відновити приховані</button>`:'');
+  $('#favOnly').onchange=e=>{S.favOnly=e.target.checked;renderAll()};
+  if(HIDDEN.length)$('#btnRestore').onclick=restoreHidden;
+  bindLinkBtns($('#all'));
+  document.querySelectorAll('#all [data-del]').forEach(b=>b.onclick=()=>removeFlat(b.dataset.del));
+  document.querySelectorAll('#all [data-a]').forEach(b=>b.onclick=()=>{S.A=b.dataset.a;$('#selA').value=S.A;update();$('#cmp').scrollIntoView({behavior:'smooth'})});
+  document.querySelectorAll('#all [data-b]').forEach(b=>b.onclick=()=>{S.B=b.dataset.b;$('#selB').value=S.B;update();$('#cmp').scrollIntoView({behavior:'smooth'})});
+}
+
+function renderVerdicts(){
+  $('#verdicts').innerHTML=VERDICTS.map(([t,id,d])=>`<div class="card"><h3>${t}</h3><b>${byId(id).name}</b><p>${d}</p></div>`).join('');
+}
+
+function bindLinkBtns(root){
+  root.querySelectorAll('[data-link]').forEach(b=>b.onclick=()=>{
+    const p=byId(b.dataset.link);
+    const v=prompt('Посилання на оголошення (порожнє — видалити):',urlOf(p));
+    if(v===null)return;
+    const t=v.trim();
+    if(t&&!/^https?:\/\//i.test(t)){alert('Посилання має починатися з http:// або https://');return}
+    if(t)LINKS[p.id]=t;else delete LINKS[p.id];
+    store.set('links',LINKS); update();
+  });
+}
+function removeFlat(id){
+  const p=byId(id); if(!p)return;
+  if(P.length<=2){alert('Для порівняння потрібно залишити щонайменше дві квартири.');return}
+  const isUser=USER.some(u=>u.id===id);
+  if(!confirm(isUser?'Видалити «'+p.name+'» назавжди?':'Прибрати «'+p.name+'» зі списку? Її можна повернути кнопкою «Відновити приховані».'))return;
+  if(isUser){
+    USER=USER.filter(u=>u.id!==id); store.set('user',USER);
+    ALL.splice(ALL.findIndex(x=>x.id===id),1); delete LINKS[id]; store.set('links',LINKS);
+  } else { HIDDEN.push(id); store.set('hidden',HIDDEN); }
+  P.splice(P.findIndex(x=>x.id===id),1);
+  if(!byId(S.A))S.A=(P.find(x=>x.id!==S.B)||P[0]).id;
+  if(!byId(S.B))S.B=(P.find(x=>x.id!==S.A)||P[0]).id;
+  renderPickers(); renderKpis(); update();
+}
+function restoreHidden(){
+  HIDDEN=[]; store.set('hidden',HIDDEN);
+  P.length=0; ALL.forEach(p=>P.push(p));
+  renderPickers(); renderKpis(); update();
+}
+const F = id => $('#'+id);
+const setMsg=(el,t,c)=>{el.textContent=t||'';el.className='msg '+(c||'')};
+async function fetchOtodom(){
+  const url=F('f_url').value.trim();
+  if(!url){setMsg(F('fmsg'),'Вставте посилання','err');return}
+  setMsg(F('fmsg'),'Завантажую…');
+  try{
+    const r=await fetch('?fetch='+encodeURIComponent(url));
+    const d=await r.json();
+    if(!r.ok||d.error)throw new Error(d.error||'Помилка');
+    const set=(id,v)=>{if(v!=null&&v!=='')F(id).value=v};
+    set('f_url',d.url||url); set('f_name',d.name); set('f_price',d.price); set('f_area',d.area);
+    set('f_rooms',d.rooms); set('f_floor',d.floor); set('f_year',d.year); set('f_dist',d.dist);
+    set('f_czynsz',d.czynsz); set('f_feat',d.feat);
+    if(d.own)F('f_own').value=d.own;
+    F('f_ready').value=d.ready?'1':'0'; F('f_agency').value=d.agency?'1':'0';
+    setMsg(F('fmsg'),'Дані підтягнуто. Перевірте поля, особливо стан (визначається за описом).','ok');
+  }catch(e){
+    setMsg(F('fmsg'),(location.protocol==='file:'?'Відкрийте сторінку через PHP-сервер. ':'')+'Не вдалося підтягнути: '+e.message+'. Можна ввести дані вручну.','err');
+  }
+}
+function addFlat(){
+  const price=parseFloat(F('f_price').value), area=parseFloat(F('f_area').value);
+  if(!(price>0)||!(area>0)){setMsg(F('amsg'),'Вкажіть ціну та площу','err');return}
+  const n=v=>{const x=parseFloat(F(v).value);return isNaN(x)?null:x};
+  const agency=F('f_agency').value==='1', url=F('f_url').value.trim();
+  const rmin=n('f_rmin')||0, rmax=n('f_rmax')||rmin;
+  const u={
+    id:'u'+Date.now().toString(36), user:true, own:F('f_own').value,
+    name:F('f_name').value.trim()||('Квартира '+fmt(price)+' zł'),
+    loc:F('f_name').value.trim(), dist:F('f_dist').value.trim()||'—',
+    price, area, rooms:F('f_rooms').value.trim()||'—', floor:F('f_floor').value.trim()||'—',
+    year:F('f_year').value.trim()||'—', ready:F('f_ready').value==='1',
+    cond:F('f_ready').value==='1'?'Готова':'Потребує ремонту',
+    seller:agency?'Агентство':'Власник', agency, czynsz:n('f_czynsz'),
+    reno:[rmin,rmax], rent:[n('f_ormin'),n('f_ormax')||n('f_ormin')],
+    metro:'—', feat:F('f_feat').value.trim()||'—', url
+  };
+  USER.push(u); store.set('user',USER); P.push(prep(u)); ALL.push(u);
+  S.B=S.A; S.A=u.id; nextSlot='B';
+  renderPickers(); renderKpis();
+  F('f_own').value='unknown'; ['f_url','f_name','f_price','f_area','f_rooms','f_floor','f_year','f_dist','f_czynsz','f_feat','f_ormin','f_ormax'].forEach(i=>F(i).value='');
+  F('f_rmin').value=0;F('f_rmax').value=0; setMsg(F('fmsg'),'');
+  setMsg(F('amsg'),'Додано й обрано у слот A ✓','ok');
+  update(); $('#cmp').scrollIntoView({behavior:'smooth'});
+}
+$('#btnFetch').onclick=fetchOtodom; $('#btnAdd').onclick=addFlat;
+F('f_url').addEventListener('keydown',e=>{if(e.key==='Enter')fetchOtodom()});
+
+function renderOwnSettings(){
+  $('#ownTbl').innerHTML=`<tr><th>Вид права</th><th>Витрати, zł</th><th>Надбавка до ставки, п.п.</th></tr>`+
+   OWN_KEYS.map(k=>{const o=ownCfg(k);return `<tr><td>${OWN[k].l}</td>
+    <td><input type="number" min="0" step="100" data-t="${k}" data-f="cost" value="${o.cost||0}"></td>
+    <td><input type="number" min="0" max="5" step="0.05" data-t="${k}" data-f="prem" value="${o.prem||0}"></td></tr>`}).join('');
+  $('#ownTbl').querySelectorAll('input').forEach(i=>i.oninput=()=>{
+    const v=parseFloat(i.value)||0;
+    (OWNCFG[i.dataset.t]=OWNCFG[i.dataset.t]||{})[i.dataset.f]=v;
+    store.set('owncfg',OWNCFG); update();
+  });
+}
+function renderOwnAnalysis(){
+  const cards=OWN_KEYS.map(k=>{
+    const o=ownCfg(k), list=P.filter(p=>ownOf(p)===k);
+    if(!list.length&&k!=='unknown')return '';
+    return `<div class="card"><h3><span class="tag ${o.cls}">${o.l}</span></h3>
+     <div class="flats"><b>${list.length?list.map(p=>p.name).join(', '):'—'}</b></div>
+     <div class="feat">${o.d}</div>
+     <ul>${o.li.map(x=>`<li>${x}</li>`).join('')}</ul>
+     <div class="feat" style="margin-top:8px">У розрахунку: +${zl(o.cost||0)} на старті, ставка ${(o.prem||0)>0?'+'+o.prem+' п.п.':'без змін'}</div></div>`;
+  }).join('');
+  $('#ownAnalysis').innerHTML=cards;
+}
+function initExPanel(){
+  const read=()=>{
+    S.ex.extra=Math.max(0,parseFloat($('#ex_extra').value)||0);
+    S.ex.lump=Math.max(0,parseFloat($('#ex_lump').value)||0);
+    S.ex.lumpM=Math.min(360,Math.max(1,parseInt($('#ex_month').value)||1));
+    S.ex.mode=$('#ex_mode').value; S.ex.fee=parseFloat($('#ex_fee').value)||0;
+    update();
+  };
+  ['ex_extra','ex_lump','ex_month'].forEach(id=>$('#'+id).oninput=read);
+  ['ex_mode','ex_fee'].forEach(id=>$('#'+id).onchange=read);
+}
+function update(){renderBars();renderCompare();renderAll();renderOwnAnalysis()}
+$('#f_own').innerHTML=OWN_KEYS.map(k=>`<option value="${k}">${OWN[k].l}</option>`).join(''); $('#f_own').value='unknown';
+if(!byId(S.A))S.A=(P.find(x=>x.id!==S.B)||P[0]).id;
+if(!byId(S.B))S.B=(P.find(x=>x.id!==S.A)||P[0]).id;
+renderOwnSettings(); initExPanel(); renderKpis(); initSettings(); renderTabs(); renderPickers(); renderVerdicts(); update();
+</script>
+</body>
+</html>

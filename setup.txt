@@ -1,0 +1,132 @@
+PROPERTIO: ЗАПУСК І ХОСТИНГ
+===========================
+
+Структура проєкту:
+  index.html        сторінка (вся логіка в браузері)
+  api/fetch.js      автозаповнення з Otodom (серверна функція Vercel)
+  lib/otodom.js     розбір оголошення Otodom
+  middleware.js     пароль на весь сайт (вмикається змінною SITE_PASSWORD)
+  server.js         локальний сервер (замість PHP)
+  vercel.json, package.json
+  legacy/index.php  стара PHP-версія, більше не використовується
+
+
+ЧАСТИНА 1. ЛОКАЛЬНО І ПО ДОМАШНІЙ WI-FI
+=======================================
+
+Умова: Mac і телефон в ОДНІЙ Wi-Fi мережі (домашній роутер), а не на
+точці доступу iPhone чи в гостьовій мережі.
+
+1. Запуск (потрібен Node.js 20+, у вас вже є):
+
+       cd /Users/daria_ma3/Projects/propertio
+       node server.js
+
+   Сторінка: http://localhost:8000
+   Не закривайте вікно Терміналу. У фоні:
+
+       nohup node server.js > /tmp/propertio.log 2>&1 &
+
+2. Адреса для телефона:
+
+       ipconfig getifaddr en0        (якщо порожньо: en1)
+
+   Відкрийте http://<IP>:8000, наприклад http://192.168.1.163:8000
+   Або за іменем Mac: http://Darias-MacBook-Air.local:8000
+
+3. Перевірка:
+
+       curl -I http://localhost:8000/
+       pgrep -fl "node server.js"
+
+4. Зупинка: Ctrl+C у вікні сервера, або
+
+       pkill -f "node server.js"
+
+5. Щоб Mac не засинав:
+
+       caffeinate -i node server.js
+
+6. Якщо не відкривається з телефона:
+   - обидва пристрої в одній Wi-Fi мережі?
+   - брандмауер macOS:
+         /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+     якщо ввімкнений:
+         sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which node)
+         sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which node)
+   - на роутері ввімкнена ізоляція клієнтів (AP/Client isolation)? Вимкніть.
+   - IP змінився? Дізнайтеся знову (крок 2).
+   - порт зайнятий? PORT=8080 node server.js
+
+
+ЧАСТИНА 2. ХОСТИНГ НА VERCEL
+============================
+
+Налаштування вже готові в проєкті. Деплой робите ви, бо потрібен вхід
+у ваш акаунт Vercel і ви вирішуєте, що публікувати.
+
+1. Один раз встановити CLI і увійти:
+
+       npm i -g vercel
+       vercel login
+
+   (відкриється браузер, увійдіть своїм акаунтом Vercel; безкоштовного
+   плану Hobby достатньо)
+
+2. Перший деплой (прев'ю-адреса):
+
+       cd /Users/daria_ma3/Projects/propertio
+       vercel
+
+   Відповіді на запитання:
+     Set up and deploy?               Y
+     Which scope?                     ваш акаунт
+     Link to existing project?        N
+     Project name?                    propertio
+     In which directory is your code? ./
+     Override settings?               N
+   Framework: Other (за потреби). Build і Output Directory залишайте
+   порожніми.
+
+3. ПАРОЛЬ НА САЙТ (рекомендовано, інакше сайт публічний для всіх, хто
+   знає адресу). Задайте змінні середовища для Production:
+
+       vercel env add SITE_PASSWORD production
+       vercel env add SITE_USER production        (необов'язково, за
+                                                    замовчуванням "dasha")
+
+   Команда спитає значення. Введіть пароль. Після цього сайт просить
+   логін і пароль (вікно браузера). Без SITE_PASSWORD пароль вимкнений.
+
+4. Продакшн-деплой (постійна адреса https://propertio-....vercel.app):
+
+       vercel --prod
+
+   Після зміни змінних середовища деплой треба повторити.
+
+5. Оновлення після змін у коді: знову
+
+       vercel --prod
+
+6. Корисне:
+       vercel ls                 список деплоїв
+       vercel logs <url>         логи функції автозаповнення
+       vercel env ls             змінні середовища
+       vercel rm propertio       видалити проєкт (за потреби)
+
+Варіант через GitHub: завантажте папку в репозиторій на GitHub, у
+Vercel натисніть "Add New Project", імпортуйте репозиторій. Далі кожен
+push у main деплоїться автоматично. Змінні середовища задайте в
+Settings → Environment Variables.
+
+ВАЖЛИВО:
+- Налаштування, видалені квартири, власний чинш, улюблені й додані
+  квартири зберігаються в браузері кожного пристрою і між пристроями не
+  синхронізуються.
+- Автозаповнення ходить на Otodom із серверів Vercel. Otodom може
+  блокувати такі запити (на відміну від вашого Mac). Якщо на Vercel
+  автозаповнення перестане працювати, квартиру можна додати вручну.
+- Без пароля (SITE_PASSWORD) будь-хто з адресою може користуватися
+  сайтом і викликати /api/fetch.
+- Обмеження часу виконання функції на Hobby ~10 с. Автозаповнення зазвичай
+  вкладається.
