@@ -181,7 +181,7 @@ details.card summary{cursor:pointer;font-weight:600}
 <h2 data-i18n="h.add"></h2>
 <div class="card">
   <div class="urlrow">
-    <input type="url" id="f_url" placeholder="https://www.otodom.pl/pl/oferta/...">
+    <input type="url" id="f_url" placeholder="https://www.otodom.pl/pl/oferta/... / https://www.morizon.pl/oferta/...">
     <button class="pbtn sec" id="btnFetch" type="button" data-i18n="f.fetch"></button>
   </div>
   <div class="msg" id="fmsg"></div>
@@ -247,23 +247,25 @@ uk:{
  'bars.hint':'Клік по рядку: перший вибір — у слот A (синій), наступний — у слот B (помаранчевий).',
  'pick.a':'Квартира A','pick.b':'Квартира B','pick.del':'Видалити зі списку',
  'cmp.hint':'Зелена підсвітка — кращий показник у парі. Платіж: ануїтет (рівними частинами). Комісія й ремонт — середина діапазону з вашої таблиці. Орендний дохід — оцінка з таблиці, без урахування податків.',
- 'f.fetch':'Підтягнути дані з Otodom','f.name':'Назва','f.name.ph':'напр. Pułaskiego 10',
+ 'f.fetch':'Підтягнути дані з посилання','f.name':'Назва','f.name.ph':'напр. Pułaskiego 10',
  'f.price':'Ціна, zł *','f.area':'Площа, м² *','f.rooms':'Кімнати','f.floor':'Поверх','f.floor.ph':'напр. 5 / 10',
  'f.year':'Рік будівництва','f.dist':'Район','f.cz':'Чинш, zł/міс.','f.cond':'Стан','f.cond.ready':'Готова','f.cond.reno':'Потребує ремонту',
  'f.own':'Вид права','f.seller':'Продавець','f.seller.agency':'Агентство (є комісія)','f.seller.owner':'Власник (без комісії)',
  'f.rmin':'Ремонт від, zł','f.rmax':'Ремонт до, zł','f.ormin':'Оренда від, zł/міс.','f.ormax':'Оренда до, zł/міс.',
  'f.feat':'Особливості','f.add':'Додати до порівняння',
- 'f.hint':'Автозаповнення працює через локальний сервер (<code>node server.js</code>) і лише для посилань Otodom. Оренду та ремонт Otodom не дає, вкажіть їх самі, якщо потрібен розрахунок. Додані квартири зберігаються в цьому браузері.',
+ 'f.hint':'Автозаповнення працює через локальний сервер (<code>node server.js</code>) і лише для посилань Otodom та Morizon. Оренду та ремонт ці сайти не дають, вкажіть їх самі, якщо потрібен розрахунок. Додані квартири зберігаються в цьому браузері.',
  'f.err.url':'Вставте посилання','f.loading':'Завантажую…','f.err.generic':'Помилка',
  'f.ok.fetch':'Дані підтягнуто. Перевірте поля, особливо стан (визначається за описом).',
  'f.err.file':'Відкрийте сторінку через локальний сервер. ','f.err.fail':'Не вдалося підтягнути: {e}. Можна ввести дані вручну.',
  'f.err.need':'Вкажіть ціну та площу','f.ok.added':'Додано й обрано у слот A ✓','f.defname':'Квартира {p} zł',
- 'err.bad_url':'Некоректне посилання','err.host':'Підтримуються лише посилання https://www.otodom.pl/...',
- 'err.no_response':'Otodom не відповів','err.bad_status':'Otodom не відповів (код {s})',
+ 'dup.found':'Ця квартира вже є в списку: {n}','dup.hidden':'Ця квартира вже є серед прихованих: {n}. Поверніть її кнопкою «Показати приховані».',
+ 'err.noapi':'ця адреса не має серверної частини. Запустіть node server.js і відкрийте http://localhost:8000',
+ 'err.bad_url':'Некоректне посилання','err.host':'Підтримуються лише посилання otodom.pl та morizon.pl',
+ 'err.no_response':'Сайт не відповів','err.bad_status':'Сайт не відповів (код {s})',
  'err.redirect':'Редірект на сторонній сайт заблоковано','err.no_data':'Не вдалося знайти дані оголошення',
  'err.not_found':'Оголошення не знайдено (можливо, воно неактивне)',
  'rooms.sfx':'-к',
- 'x.lift':'ліфт','x.balcony':'балкон','x.basement':'підвал','x.terrace':'тераса','x.separate_kitchen':'окрема кухня',
+ 'x.lift':'ліфт','x.balcony':'балкон','x.loggia':'лоджія','x.basement':'підвал','x.terrace':'тераса','x.separate_kitchen':'окрема кухня',
  'x.garage':'гараж','x.usable_room':'komórka lokatorska','x.garden':'садок','x.furniture':'меблі',
  'kpi.cheap':'Найдешевша','kpi.ppm':'Найнижча ціна/м²','kpi.big':'Найбільша площа','kpi.avg':'Середня ціна/м²',
  'kpi.state':'{r} готові · {n} під ремонт',
@@ -342,23 +344,25 @@ pl:{
  'bars.hint':'Kliknij wiersz: pierwszy wybór trafia do miejsca A (niebieski), kolejny do miejsca B (pomarańczowy).',
  'pick.a':'Mieszkanie A','pick.b':'Mieszkanie B','pick.del':'Usuń z listy',
  'cmp.hint':'Zielone podświetlenie oznacza lepszy wynik w parze. Rata: annuitetowa (równe raty). Prowizja i remont to środek przedziału z Twojej tabeli. Dochód z wynajmu to szacunek z tabeli, bez podatków.',
- 'f.fetch':'Pobierz dane z Otodom','f.name':'Nazwa','f.name.ph':'np. Pułaskiego 10',
+ 'f.fetch':'Pobierz dane z linku','f.name':'Nazwa','f.name.ph':'np. Pułaskiego 10',
  'f.price':'Cena, zł *','f.area':'Powierzchnia, m² *','f.rooms':'Pokoje','f.floor':'Piętro','f.floor.ph':'np. 5 / 10',
  'f.year':'Rok budowy','f.dist':'Dzielnica','f.cz':'Czynsz, zł/mies.','f.cond':'Stan','f.cond.ready':'Gotowe','f.cond.reno':'Do remontu',
  'f.own':'Rodzaj prawa','f.seller':'Sprzedający','f.seller.agency':'Agencja (z prowizją)','f.seller.owner':'Właściciel (bez prowizji)',
  'f.rmin':'Remont od, zł','f.rmax':'Remont do, zł','f.ormin':'Wynajem od, zł/mies.','f.ormax':'Wynajem do, zł/mies.',
  'f.feat':'Cechy','f.add':'Dodaj do porównania',
- 'f.hint':'Autouzupełnianie działa przez lokalny serwer (<code>node server.js</code>) i tylko dla linków z Otodom. Otodom nie podaje wynajmu ani kosztów remontu, wpisz je samodzielnie, jeśli chcesz je uwzględnić. Dodane mieszkania są zapisywane w tej przeglądarce.',
+ 'f.hint':'Autouzupełnianie działa przez lokalny serwer (<code>node server.js</code>) i tylko dla linków z Otodom i Morizon. Te serwisy nie podają wynajmu ani kosztów remontu, wpisz je samodzielnie, jeśli chcesz je uwzględnić. Dodane mieszkania są zapisywane w tej przeglądarce.',
  'f.err.url':'Wklej link','f.loading':'Pobieram…','f.err.generic':'Błąd',
  'f.ok.fetch':'Dane pobrane. Sprawdź pola, zwłaszcza stan (ustalany na podstawie opisu).',
  'f.err.file':'Otwórz stronę przez lokalny serwer. ','f.err.fail':'Nie udało się pobrać: {e}. Możesz wpisać dane ręcznie.',
  'f.err.need':'Podaj cenę i powierzchnię','f.ok.added':'Dodano i wybrano w miejscu A ✓','f.defname':'Mieszkanie {p} zł',
- 'err.bad_url':'Nieprawidłowy link','err.host':'Obsługiwane są tylko linki https://www.otodom.pl/...',
- 'err.no_response':'Otodom nie odpowiada','err.bad_status':'Otodom nie odpowiada (kod {s})',
+ 'dup.found':'To mieszkanie jest już na liście: {n}','dup.hidden':'To mieszkanie jest już wśród ukrytych: {n}. Przywróć je przyciskiem przywracania ukrytych.',
+ 'err.noapi':'ten adres nie ma części serwerowej. Uruchom node server.js i otwórz http://localhost:8000',
+ 'err.bad_url':'Nieprawidłowy link','err.host':'Obsługiwane są tylko linki z otodom.pl i morizon.pl',
+ 'err.no_response':'Serwis nie odpowiada','err.bad_status':'Serwis nie odpowiada (kod {s})',
  'err.redirect':'Przekierowanie na obcą stronę zostało zablokowane','err.no_data':'Nie znaleziono danych ogłoszenia',
  'err.not_found':'Nie znaleziono ogłoszenia (może być nieaktywne)',
  'rooms.sfx':' pok.',
- 'x.lift':'winda','x.balcony':'balkon','x.basement':'piwnica','x.terrace':'taras','x.separate_kitchen':'oddzielna kuchnia',
+ 'x.lift':'winda','x.balcony':'balkon','x.loggia':'loggia','x.basement':'piwnica','x.terrace':'taras','x.separate_kitchen':'oddzielna kuchnia',
  'x.garage':'garaż','x.usable_room':'komórka lokatorska','x.garden':'ogródek','x.furniture':'meble',
  'kpi.cheap':'Najtańsze','kpi.ppm':'Najniższa cena/m²','kpi.big':'Największa powierzchnia','kpi.avg':'Średnia cena/m²',
  'kpi.state':'{r} gotowe · {n} do remontu',
@@ -437,23 +441,25 @@ en:{
  'bars.hint':'Click a row: the first pick goes to slot A (blue), the next to slot B (orange).',
  'pick.a':'Apartment A','pick.b':'Apartment B','pick.del':'Remove from list',
  'cmp.hint':'Green highlight marks the better value in the pair. Payment: annuity (equal installments). Commission and renovation use the midpoint of the range from your spreadsheet. Rental income is an estimate from the spreadsheet, before tax.',
- 'f.fetch':'Fetch data from Otodom','f.name':'Name','f.name.ph':'e.g. Pułaskiego 10',
+ 'f.fetch':'Fetch data from link','f.name':'Name','f.name.ph':'e.g. Pułaskiego 10',
  'f.price':'Price, zł *','f.area':'Area, m² *','f.rooms':'Rooms','f.floor':'Floor','f.floor.ph':'e.g. 5 / 10',
  'f.year':'Year built','f.dist':'District','f.cz':'Czynsz, zł/mo','f.cond':'Condition','f.cond.ready':'Ready','f.cond.reno':'Needs renovation',
  'f.own':'Type of title','f.seller':'Seller','f.seller.agency':'Agency (commission applies)','f.seller.owner':'Owner (no commission)',
  'f.rmin':'Renovation from, zł','f.rmax':'Renovation to, zł','f.ormin':'Rent from, zł/mo','f.ormax':'Rent to, zł/mo',
  'f.feat':'Features','f.add':'Add to comparison',
- 'f.hint':'Autofill works through the local server (<code>node server.js</code>) and only for Otodom links. Otodom does not provide rent or renovation costs, enter them yourself if you want them in the calculation. Added apartments are saved in this browser.',
+ 'f.hint':'Autofill works through the local server (<code>node server.js</code>) and only for Otodom and Morizon links. These sites do not provide rent or renovation costs, enter them yourself if you want them in the calculation. Added apartments are saved in this browser.',
  'f.err.url':'Paste a link','f.loading':'Loading…','f.err.generic':'Error',
  'f.ok.fetch':'Data fetched. Check the fields, especially the condition (it is guessed from the description).',
  'f.err.file':'Open the page through the local server. ','f.err.fail':'Could not fetch: {e}. You can enter the data manually.',
  'f.err.need':'Enter the price and area','f.ok.added':'Added and selected in slot A ✓','f.defname':'Apartment {p} zł',
- 'err.bad_url':'Invalid link','err.host':'Only https://www.otodom.pl/... links are supported',
- 'err.no_response':'Otodom did not respond','err.bad_status':'Otodom did not respond (code {s})',
+ 'dup.found':'This apartment is already in the list: {n}','dup.hidden':'This apartment is already among the hidden ones: {n}. Restore it with the restore-hidden button.',
+ 'err.noapi':'this address has no server part. Run node server.js and open http://localhost:8000',
+ 'err.bad_url':'Invalid link','err.host':'Only otodom.pl and morizon.pl links are supported',
+ 'err.no_response':'The site did not respond','err.bad_status':'The site did not respond (code {s})',
  'err.redirect':'Redirect to an external site was blocked','err.no_data':'Could not find the listing data',
  'err.not_found':'Listing not found (it may be inactive)',
  'rooms.sfx':'-room',
- 'x.lift':'lift','x.balcony':'balcony','x.basement':'basement','x.terrace':'terrace','x.separate_kitchen':'separate kitchen',
+ 'x.lift':'lift','x.balcony':'balcony','x.loggia':'loggia','x.basement':'basement','x.terrace':'terrace','x.separate_kitchen':'separate kitchen',
  'x.garage':'garage','x.usable_room':'storage room (komórka lokatorska)','x.garden':'garden','x.furniture':'furniture',
  'kpi.cheap':'Cheapest','kpi.ppm':'Lowest price/m²','kpi.big':'Largest area','kpi.avg':'Average price/m²',
  'kpi.state':'{r} ready · {n} need renovation',
@@ -602,6 +608,18 @@ document.addEventListener('click',e=>{
 for(let i=P.length-1;i>=0;i--) if(HIDDEN.includes(P[i].id)) P.splice(i,1);
 const byId = id => P.find(p=>p.id===id);
 const urlOf = p => LINKS[p.id]||p.url||'';
+// Ключ оголошення: ID з посилання (Otodom …-ID4DP5H, Morizon …-mzn2048168273), інакше нормалізований URL без query/hash.
+function urlKey(raw){
+  let u; try{u=new URL(String(raw||'').trim())}catch(e){return ''}
+  const host=u.hostname.toLowerCase().replace(/^www\./,'');
+  const m=u.pathname.match(/-(ID[0-9A-Za-z]+|mzn\d+)\/?$/);
+  return m?host+'#'+m[1].toLowerCase():host+u.pathname.replace(/\/+$/,'').toLowerCase();
+}
+function findDup(url,exceptId){
+  const k=urlKey(url); if(!k)return null;
+  return ALL.find(p=>p.id!==exceptId&&urlKey(urlOf(p))===k)||null;
+}
+function dupMsg(p){return t(P.includes(p)?'dup.found':'dup.hidden',{n:nm(p)})}
 const OWN_BASE = {kro:'unknown', wol:'full', lan:'coop_kw', son:'coop_kw', g2:'coop_nokw', bac:'unknown', g1:'full', jp2:'coop_nokw', gro:'full', gjc:'full', ksa:'full', dyb:'coop_nokw', nis:'coop_kw'};
 const OWN_NOTE_NEW = true;
 const OWN_NOTE = {
@@ -917,6 +935,7 @@ function bindLinkBtns(root){
     if(v===null)return;
     const val=v.trim();
     if(val&&!/^https?:\/\//i.test(val)){alert(t('link.bad'));return}
+    const dup=val&&findDup(val,p.id); if(dup){alert(dupMsg(dup));return}
     if(val)LINKS[p.id]=val;else delete LINKS[p.id];
     store.set('links',LINKS); update();
   });
@@ -948,8 +967,9 @@ async function fetchOtodom(){
   setMsg(F('fmsg'),t('f.loading'));
   try{
     const r=await fetch('api/fetch?url='+encodeURIComponent(url));
-    const d=await r.json();
+    let d; try{d=await r.json()}catch(_){throw new Error(t('err.noapi'))}
     if(!r.ok||d.error)throw new Error(d.code?t('err.'+d.code,{s:d.status}):(d.error||t('f.err.generic')));
+    const dup=findDup(d.url||url); if(dup){setMsg(F('fmsg'),dupMsg(dup),'err');return}
     const set=(id,v)=>{if(v!=null&&v!=='')F(id).value=v};
     const name=d.loc&&d.rooms?`${d.name} (${d.rooms}${t('rooms.sfx')})`:d.name;
     set('f_url',d.url||url); set('f_name',name); set('f_price',d.price); set('f_area',d.area);
@@ -967,6 +987,7 @@ function addFlat(){
   if(!(price>0)||!(area>0)){setMsg(F('amsg'),t('f.err.need'),'err');return}
   const n=v=>{const x=parseFloat(F(v).value);return isNaN(x)?null:x};
   const agency=F('f_agency').value==='1', url=F('f_url').value.trim();
+  const dup=url&&findDup(url); if(dup){setMsg(F('amsg'),dupMsg(dup),'err');return}
   const rmin=n('f_rmin')||0, rmax=n('f_rmax')||rmin;
   const u={
     id:'u'+Date.now().toString(36), user:true, own:F('f_own').value,

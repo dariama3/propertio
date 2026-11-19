@@ -1,13 +1,13 @@
 // Локальний сервер (замість php -S): node server.js  →  http://0.0.0.0:8000
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { parseOtodom } from './lib/otodom.js';
+import { parseListing } from './lib/listing.js';
 
 const port = process.env.PORT || 8000;
 http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/api/fetch') {
-    const [status, body] = await parseOtodom(u.searchParams.get('url'));
+    const [status, body] = await parseListing(u.searchParams.get('url'));
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
     return res.end(JSON.stringify(body));
   }
