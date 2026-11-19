@@ -44,7 +44,7 @@
 <div class="card settings" id="settings">
   <div class="field"><label for="dp" data-i18n="s.dp"></label>
     <select id="dp"></select></div>
-  <div class="field rate"><label for="rate" data-i18n="s.rate"></label>
+  <div class="field rate"><label for="rateN" data-i18n="s.rate"></label>
     <div class="rate-row"><input type="range" id="rateR" min="2" max="12" step="0.05"><input type="number" id="rateN" min="0" max="30" step="0.05"></div></div>
   <div class="field"><label for="term" data-i18n="s.term"></label>
     <select id="term"></select></div>
@@ -83,22 +83,22 @@
   </div>
   <div class="msg" id="fmsg"></div>
   <div class="addform" style="margin-top:12px">
-    <div class="field wide"><label data-i18n="f.name"></label><input type="text" id="f_name" data-i18n-ph="f.name.ph"></div>
-    <div class="field"><label data-i18n="f.price"></label><input type="number" id="f_price" min="0" step="1000"></div>
-    <div class="field"><label data-i18n="f.area"></label><input type="number" id="f_area" min="0" step="0.01"></div>
-    <div class="field"><label data-i18n="f.rooms"></label><input type="text" id="f_rooms"></div>
-    <div class="field"><label data-i18n="f.floor"></label><input type="text" id="f_floor" data-i18n-ph="f.floor.ph"></div>
-    <div class="field"><label data-i18n="f.year"></label><input type="text" id="f_year"></div>
-    <div class="field"><label data-i18n="f.dist"></label><input type="text" id="f_dist"></div>
-    <div class="field"><label data-i18n="f.cz"></label><input type="number" id="f_czynsz" min="0"></div>
-    <div class="field"><label data-i18n="f.cond"></label><select id="f_ready"><option value="1" data-i18n="f.cond.ready"></option><option value="0" data-i18n="f.cond.reno"></option></select></div>
-    <div class="field"><label data-i18n="f.own"></label><select id="f_own"></select></div>
-    <div class="field"><label data-i18n="f.seller"></label><select id="f_agency"><option value="1" data-i18n="f.seller.agency"></option><option value="0" data-i18n="f.seller.owner"></option></select></div>
-    <div class="field"><label data-i18n="f.rmin"></label><input type="number" id="f_rmin" min="0" step="5000" value="0"></div>
-    <div class="field"><label data-i18n="f.rmax"></label><input type="number" id="f_rmax" min="0" step="5000" value="0"></div>
-    <div class="field"><label data-i18n="f.ormin"></label><input type="number" id="f_ormin" min="0" step="100"></div>
-    <div class="field"><label data-i18n="f.ormax"></label><input type="number" id="f_ormax" min="0" step="100"></div>
-    <div class="field wide"><label data-i18n="f.feat"></label><input type="text" id="f_feat"></div>
+    <div class="field wide"><label for="f_name" data-i18n="f.name"></label><input type="text" id="f_name" data-i18n-ph="f.name.ph"></div>
+    <div class="field"><label for="f_price" data-i18n="f.price"></label><input type="number" id="f_price" min="0" step="1000"></div>
+    <div class="field"><label for="f_area" data-i18n="f.area"></label><input type="number" id="f_area" min="0" step="0.01"></div>
+    <div class="field"><label for="f_rooms" data-i18n="f.rooms"></label><input type="text" id="f_rooms"></div>
+    <div class="field"><label for="f_floor" data-i18n="f.floor"></label><input type="text" id="f_floor" data-i18n-ph="f.floor.ph"></div>
+    <div class="field"><label for="f_year" data-i18n="f.year"></label><input type="text" id="f_year"></div>
+    <div class="field"><label for="f_dist" data-i18n="f.dist"></label><input type="text" id="f_dist"></div>
+    <div class="field"><label for="f_czynsz" data-i18n="f.cz"></label><input type="number" id="f_czynsz" min="0"></div>
+    <div class="field"><label for="f_ready" data-i18n="f.cond"></label><select id="f_ready"><option value="1" data-i18n="f.cond.ready"></option><option value="0" data-i18n="f.cond.reno"></option></select></div>
+    <div class="field"><label for="f_own" data-i18n="f.own"></label><select id="f_own"></select></div>
+    <div class="field"><label for="f_agency" data-i18n="f.seller"></label><select id="f_agency"><option value="1" data-i18n="f.seller.agency"></option><option value="0" data-i18n="f.seller.owner"></option></select></div>
+    <div class="field"><label for="f_rmin" data-i18n="f.rmin"></label><input type="number" id="f_rmin" min="0" step="5000" value="0"></div>
+    <div class="field"><label for="f_rmax" data-i18n="f.rmax"></label><input type="number" id="f_rmax" min="0" step="5000" value="0"></div>
+    <div class="field"><label for="f_ormin" data-i18n="f.ormin"></label><input type="number" id="f_ormin" min="0" step="100"></div>
+    <div class="field"><label for="f_ormax" data-i18n="f.ormax"></label><input type="number" id="f_ormax" min="0" step="100"></div>
+    <div class="field wide"><label for="f_feat" data-i18n="f.feat"></label><input type="text" id="f_feat"></div>
     <div class="wide"><button class="pbtn" id="btnAdd" type="button" data-i18n="f.add"></button>
       <span class="msg" id="amsg"></span></div>
   </div>
