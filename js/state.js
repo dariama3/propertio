@@ -2,7 +2,7 @@
 function fld(p,k){
   if(p.user){
     if(k==='cond')return t(p.ready?'cond.ready':'cond.reno');
-    if(k==='seller')return t(p.agency?'seller.agency':'seller.owner');
+    if(k==='seller')return t(p.dev?'seller.dev':p.agency?'seller.agency':'seller.owner');
     return p[k];
   }
   return LANG==='uk' ? p[k] : (D[p.id]?.[LANG]?.[k] ?? p[k]);

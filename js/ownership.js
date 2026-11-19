@@ -19,7 +19,7 @@ P.forEach(p=>{p.own=OWN_BASE[p.id]||'unknown'; p.own_note=OWN_NOTE[p.id]||'';});
 // числові параметри видів права; тексти (l, short, d, li) беруться з перекладу: own.<ключ>.<поле>
 const OWN = {
   full:{risk:0, cost:0, prem:0, cls:'ok'},
-  coop_kw:{risk:1, cost:500, prem:0, cls:'ok'},
+  coop_kw:{risk:1, cost:500, prem:0, cls:'mid'},
   coop:{risk:2, cost:1000, prem:0, cls:'warn'},
   coop_nokw:{risk:3, cost:1500, prem:0, cls:'bad'},
   perp:{risk:1, cost:0, prem:0, cls:'warn'},

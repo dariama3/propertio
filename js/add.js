@@ -15,7 +15,7 @@ async function fetchOtodom(){
     set('f_rooms',d.rooms); set('f_floor',d.floor); set('f_year',d.year); set('f_dist',d.dist);
     set('f_czynsz',d.czynsz); set('f_feat',(d.extras||[]).map(k=>t('x.'+k)).join(', '));
     if(d.own)F('f_own').value=d.own;
-    F('f_ready').value=d.ready?'1':'0'; F('f_agency').value=d.agency?'1':'0';
+    F('f_ready').value=d.ready?'1':'0'; F('f_agency').value=d.dev?'dev':d.agency?'1':'0';
     setMsg(F('fmsg'),t('f.ok.fetch'),'ok');
   }catch(e){
     setMsg(F('fmsg'),(location.protocol==='file:'?t('f.err.file'):'')+t('f.err.fail',{e:e.message}),'err');
@@ -25,7 +25,7 @@ function addFlat(){
   const price=parseFloat(F('f_price').value), area=parseFloat(F('f_area').value);
   if(!(price>0)||!(area>0)){setMsg(F('amsg'),t('f.err.need'),'err');return}
   const n=v=>{const x=parseFloat(F(v).value);return isNaN(x)?null:x};
-  const agency=F('f_agency').value==='1', url=F('f_url').value.trim();
+  const sellerType=F('f_agency').value, agency=sellerType==='1', dev=sellerType==='dev', url=F('f_url').value.trim();
   const dup=url&&findDup(url); if(dup){setMsg(F('amsg'),dupMsg(dup),'err');return}
   const rmin=n('f_rmin')||0, rmax=n('f_rmax')||rmin;
   const u={
@@ -35,7 +35,7 @@ function addFlat(){
     price, area, rooms:F('f_rooms').value.trim()||'—', floor:F('f_floor').value.trim()||'—',
     year:F('f_year').value.trim()||'—', ready:F('f_ready').value==='1',
     cond:t(F('f_ready').value==='1'?'cond.ready':'cond.reno'),
-    seller:t(agency?'seller.agency':'seller.owner'), agency, czynsz:n('f_czynsz'),
+    seller:t(dev?'seller.dev':agency?'seller.agency':'seller.owner'), agency, dev, czynsz:n('f_czynsz'),
     reno:[rmin,rmax], rent:[n('f_ormin'),n('f_ormax')||n('f_ormin')],
     metro:'—', feat:F('f_feat').value.trim()||'—', url
   };
