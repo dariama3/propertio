@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Квартири у Варшаві — порівняння</title>
+<title>Propertio</title>
 <link rel="icon" href="assets/favicon-light.ico" sizes="any">
 <link rel="icon" href="assets/favicon-light.ico" sizes="any" media="(prefers-color-scheme: light)">
 <link rel="icon" href="assets/favicon-dark.ico" sizes="any" media="(prefers-color-scheme: dark)">
@@ -33,6 +33,13 @@ header{padding:28px 0 8px}
 .hero{padding:22px 2px 0}
 h1{margin:0 0 4px;font-size:26px}
 h2{margin:36px 0 12px;font-size:20px}
+html{scroll-behavior:smooth}
+h2[id],#mortBox{scroll-margin-top:64px}
+.secnav{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;padding:10px 0;margin-top:14px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);scrollbar-width:none}
+.secnav::-webkit-scrollbar{display:none}
+.secnav a{flex:none;color:var(--muted);text-decoration:none;font-size:14px;font-weight:600;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:color .15s,border-color .15s,background .15s}
+.secnav a:hover{color:var(--ink);border-color:var(--muted)}
+.secnav a.on{color:var(--a);border-color:var(--a);background:var(--a-soft)}
 .sub{color:var(--muted);margin:0}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
 .grid{display:grid;gap:12px}
@@ -109,6 +116,19 @@ a{color:var(--a)}
 .fav.on,.favstar{color:#f5b301}
 .fav:hover{transform:scale(1.15)}
 details.card summary{cursor:pointer;font-weight:600}
+#mortBox>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mort-toggle{font-weight:500;font-size:14px;color:var(--muted);display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+#mortBox>summary::before{content:'▾';display:inline-block;width:1.1em;transition:transform .15s}
+#mortBox:not([open])>summary::before{transform:rotate(-90deg)}
+#mortBox>summary>span{flex:1}
+#mortBox .mbody{margin-top:8px}
+#mortBox .mbody>.card{border:0;background:none;box-shadow:none;padding:12px 0 0;border-top:1px solid var(--line);margin-top:12px;border-radius:0}
+#mortBox .mbody>.settings{position:static}
+#mortBox .mnote{display:none;margin:8px 0 0}
+#mortBox.off #exPanel,#mortBox.off #settings .field:not(.keep){display:none}#mortBox.off .mnote{display:block}
+tr.sec th{cursor:pointer;user-select:none}
+tr.sec th .chev{display:inline-block;width:1.1em;transition:transform .15s}
+tr.sec.shut th .chev{transform:rotate(-90deg)}
 .owntbl{margin-top:10px;font-size:13px}.owntbl th,.owntbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left}
 .owntbl input{width:90px}
 .ownsel{font-size:13px;max-width:100%}
@@ -147,9 +167,17 @@ details.card summary{cursor:pointer;font-weight:600}
     <p class="sub" data-i18n="sub"></p>
   </div>
 </header>
+<nav class="secnav" id="secnav" aria-label="Sections">
+    <a href="#mortBox" data-i18n="nav.mort"></a><a href="#s-add" data-i18n="nav.add"></a><a href="#s-overview" data-i18n="nav.overview"></a><a href="#s-compare" data-i18n="nav.compare"></a><a href="#s-all" data-i18n="nav.all"></a><a href="#s-own" data-i18n="nav.own"></a><a href="#s-verdicts" data-i18n="nav.verdicts"></a>
+  </nav>
+
 
 <div class="grid kpis" id="kpis"></div>
 
+<details class="card" id="mortBox" open style="margin-top:20px">
+  <summary><span data-i18n="mort.sum"></span>
+    <label class="mort-toggle"><input type="checkbox" id="mortOn"> <span data-i18n="mort.on"></span></label></summary>
+  <div class="mbody">
 <div class="card settings" id="settings">
   <div class="field"><label for="dp" data-i18n="s.dp"></label>
     <select id="dp"></select></div>
@@ -157,9 +185,9 @@ details.card summary{cursor:pointer;font-weight:600}
     <div class="rate-row"><input type="range" id="rateR" min="2" max="12" step="0.05"><input type="number" id="rateN" min="0" max="30" step="0.05"></div></div>
   <div class="field"><label for="term" data-i18n="s.term"></label>
     <select id="term"></select></div>
-  <div class="field"><label for="comm" data-i18n="s.comm"></label>
+  <div class="field keep"><label for="comm" data-i18n="s.comm"></label>
     <select id="comm"></select></div>
-  <div class="field"><label for="czdef" data-i18n="s.czdef"></label>
+  <div class="field keep"><label for="czdef" data-i18n="s.czdef"></label>
     <select id="czdef"></select></div>
 </div>
 
@@ -180,23 +208,11 @@ details.card summary{cursor:pointer;font-weight:600}
   <p class="hint" data-i18n="own.hint"></p>
   <div class="tw"><table class="owntbl" id="ownTbl"></table></div>
 </details>
+  </div>
+  <p class="hint mnote" data-i18n="mort.off"></p>
+</details>
 
-<h2 data-i18n="h.overview"></h2>
-<div class="card">
-  <div class="tabs" id="metricTabs"></div>
-  <div class="bars" id="bars"></div>
-  <p class="hint" data-i18n="bars.hint"></p>
-</div>
-
-<h2 data-i18n="h.compare"></h2>
-<div class="pickers">
-  <div class="card picker A"><div class="sub" data-i18n="pick.a"></div><select id="selA"></select><div style="margin-top:6px"><button class="btn x" id="delA" data-i18n="pick.del"></button></div></div>
-  <div class="card picker B"><div class="sub" data-i18n="pick.b"></div><select id="selB"></select><div style="margin-top:6px"><button class="btn x" id="delB" data-i18n="pick.del"></button></div></div>
-</div>
-<div class="card" style="padding:0"><div class="tw"><table class="cmp" id="cmp"></table></div></div>
-<p class="hint" data-i18n="cmp.hint"></p>
-
-<h2 data-i18n="h.add"></h2>
+<h2 id="s-add" data-i18n="h.add"></h2>
 <div class="card">
   <div class="urlrow">
     <input type="url" id="f_url" placeholder="https://www.otodom.pl/pl/oferta/... / https://www.morizon.pl/oferta/...">
@@ -226,14 +242,29 @@ details.card summary{cursor:pointer;font-weight:600}
   <p class="hint" data-i18n-html="f.hint"></p>
 </div>
 
-<h2 data-i18n="h.all"></h2>
+<h2 id="s-overview" data-i18n="h.overview"></h2>
+<div class="card">
+  <div class="tabs" id="metricTabs"></div>
+  <div class="bars" id="bars"></div>
+  <p class="hint" data-i18n="bars.hint"></p>
+</div>
+
+<h2 id="s-compare" data-i18n="h.compare"></h2>
+<div class="pickers">
+  <div class="card picker A"><div class="sub" data-i18n="pick.a"></div><select id="selA"></select><div style="margin-top:6px"><button class="btn x" id="delA" data-i18n="pick.del"></button></div></div>
+  <div class="card picker B"><div class="sub" data-i18n="pick.b"></div><select id="selB"></select><div style="margin-top:6px"><button class="btn x" id="delB" data-i18n="pick.del"></button></div></div>
+</div>
+<div class="card" style="padding:0"><div class="tw"><table class="cmp" id="cmp"></table></div></div>
+<p class="hint" data-i18n="cmp.hint"></p>
+
+<h2 id="s-all" data-i18n="h.all"></h2>
 <div class="hint" id="hiddenBar" style="margin:-4px 0 8px"></div>
 <div class="card" style="padding:0"><div class="tw"><table class="all" id="all"></table></div></div>
 
-<h2 data-i18n="h.own"></h2>
+<h2 id="s-own" data-i18n="h.own"></h2>
 <div class="grid own-grid" id="ownAnalysis"></div>
 
-<h2 data-i18n="h.verdicts"></h2>
+<h2 id="s-verdicts" data-i18n="h.verdicts"></h2>
 <div class="grid verdicts" id="verdicts"></div>
 </div>
 
@@ -247,8 +278,8 @@ let LANG = (()=>{
 const I18N = {
 uk:{
  'page.title':'Propertio',
- 'h1':'Квартири у Варшаві: порівняння та іпотека',
- 'sub':'Пропозиції з Otodom. Оберіть дві квартири й налаштуйте іпотеку, щоб побачити щомісячний платіж.',
+ 'h1':'Нерухомість: порівняння та іпотека',
+ 'sub':'Додайте оголошення за посиланням, оберіть два об\'єкти й налаштуйте іпотеку, щоб побачити щомісячний платіж.',
  'm2':'м²','mo':'міс.','yr':'р.',
  's.dp':'Перший внесок','s.rate':'Відсоткова ставка, % річних','s.term':'Термін, років','s.comm':'Комісія агентства, %',
  's.czdef':'Чинш, якщо не вказаний, zł/міс.',
@@ -260,8 +291,8 @@ uk:{
  'own.sum':'Вид права власності: припущення про витрати й ставку',
  'own.hint':'Додаткові витрати (KW, довідки, нотаріус/суд) додаються до готівки на старті, а надбавка збільшує ставку іпотеки для квартир із таким видом права. Значення орієнтовні, уточніть у банку та нотаріуса.',
  'own.th.type':'Вид права','own.th.cost':'Витрати, zł','own.th.prem':'Надбавка до ставки, п.п.',
- 'h.overview':"Огляд усіх об'єктів",'h.compare':'Порівняння двох квартир','h.add':'Додати квартиру за посиланням',
- 'h.all':'Усі квартири','h.own':'Аналіз виду права власності','h.verdicts':'Висновки з вашої таблиці',
+ 'h.overview':"Огляд усіх об'єктів",'h.compare':'Порівняння двох квартир','h.add':'Додати об\'єкт за посиланням',
+ 'h.all':'Усі об\'єкти','h.own':'Аналіз виду права власності','h.verdicts':'Висновки з вашої таблиці',
  'bars.hint':'Клік по рядку: перший вибір — у слот A (синій), наступний — у слот B (помаранчевий).',
  'pick.a':'Квартира A','pick.b':'Квартира B','pick.del':'Видалити зі списку',
  'cmp.hint':'Зелена підсвітка — кращий показник у парі. Платіж: ануїтет (рівними частинами). Комісія й ремонт — середина діапазону з вашої таблиці. Орендний дохід — оцінка з таблиці, без урахування податків.',
@@ -272,7 +303,7 @@ uk:{
  'f.rmin':'Ремонт від, zł','f.rmax':'Ремонт до, zł','f.ormin':'Оренда від, zł/міс.','f.ormax':'Оренда до, zł/міс.',
  'f.feat':'Особливості','f.add':'Додати до порівняння',
  'f.hint':'Автозаповнення працює через локальний сервер (<code>node server.js</code>) і лише для посилань Otodom та Morizon. Оренду та ремонт ці сайти не дають, вкажіть їх самі, якщо потрібен розрахунок. Додані квартири зберігаються в цьому браузері.',
- 'f.err.url':'Вставте посилання','f.loading':'Завантажую…','f.err.generic':'Помилка',
+ 'nav.mort':'Іпотека','nav.add':'Додати','nav.overview':'Огляд','nav.compare':'Порівняння','nav.all':'Усі об\'єкти','nav.own':'Право власності','nav.verdicts':'Висновки','mort.sum':'Іпотека (необов\'язково)','mort.on':'Враховувати іпотеку','mort.off':'Іпотеку вимкнено: порівняння рахується як купівля за власні кошти (початкова сума = повна ціна + комісія + ремонт).','c.monthly':'Щомісячні витрати','f.err.url':'Вставте посилання','f.loading':'Завантажую…','f.err.generic':'Помилка',
  'f.ok.fetch':'Дані підтягнуто. Перевірте поля, особливо стан (визначається за описом).',
  'f.err.file':'Відкрийте сторінку через локальний сервер. ','f.err.fail':'Не вдалося підтягнути: {e}. Можна ввести дані вручну.',
  'f.err.need':'Вкажіть ціну та площу','f.ok.added':'Додано й обрано у слот A ✓','f.defname':'Квартира {p} zł',
@@ -303,7 +334,7 @@ uk:{
  'c.ex':'Дострокове погашення','c.ex.extra':': +{x} zł/міс.','c.ex.lump':', {x} zł на міс. №{m}',
  'c.ex.term':'Термін кредиту','c.ex.cut':'Скорочення терміну','c.ex.after':'Платіж після погашення','c.ex.base':'Базовий платіж',
  'c.ex.int':'Переплата за відсотками (з погашенням)','c.ex.save':'Економія на відсотках','c.ex.fee':'Комісія за дострокове погашення',
- 'c.ex.net':'Чиста економія (мінус комісія)','c.ex.hint':'Вкажіть суму вище, щоб побачити економію.',
+ 'c.ex.net':'Чиста економія (мінус комісія)','c.ex.hint':'Не заповнено. Вкажіть додаткову суму в блоці «Іпотека» → «Дострокове погашення», і тут з\'явиться розрахунок економії.','c.how':'Як це рахується','how.mort':'{price} − внесок {dp}% ({down}) = кредит {loan}. Ставка {rate}% на {term} → платіж {pay}/міс.','how.add.extra':'+{x} щомісяця','how.add.lump':'{x} у міс. №{m}','how.fee':', мінус комісія банку {fee}','how.ex.term':'За графіком платіж {base}/міс. Ви вносите додатково: {add}. Платіж не змінюється, тому кредит закінчиться через {new} замість {old}. Відсотки: {int} замість {baseInt} → економія {saved}{fee}. Чиста економія: {net}.','how.ex.pay':'За графіком платіж {base}/міс. Ви вносите додатково: {add}. Термін лишається {old}, а платіж після погашення зменшується до {after}/міс. Відсотки: {int} замість {baseInt} → економія {saved}{fee}. Чиста економія: {net}.',
  'c.start':'Стартові витрати','c.comm':'Комісія агентства ({x}%)','c.reno':'Ремонт (середня оцінка)','c.noreno':'не потрібен','c.cash':'Готівка на старті',
  'c.rentsec':'Оренда (оцінка з таблиці)','c.rent':'Оренда / міс.','c.rentnet':'Оренда мінус платіж і чинш','c.yield':'Валова дохідність / рік',
  'c.listing':'Оголошення',
@@ -343,9 +374,9 @@ uk:{
  'v.6.t':'✨ Преміальний дизайн «під ключ»','v.6.d':'Дизайнерський ремонт, меблі й техніка, низький чинш 665 zł.',
 },
 pl:{
- 'page.title':'Mieszkania w Warszawie — porównanie',
- 'h1':'Mieszkania w Warszawie: porównanie i kredyt hipoteczny',
- 'sub':'Oferty z Otodom. Wybierz dwa mieszkania i ustaw parametry kredytu, aby zobaczyć miesięczną ratę.',
+ 'page.title':'Propertio',
+ 'h1':'Nieruchomości: porównanie i kredyt hipoteczny',
+ 'sub':'Dodaj ogłoszenia z linków, wybierz dwie nieruchomości i ustaw parametry kredytu, aby zobaczyć miesięczną ratę.',
  'm2':'m²','mo':'mies.','yr':'l.',
  's.dp':'Wkład własny','s.rate':'Oprocentowanie, % rocznie','s.term':'Okres, lata','s.comm':'Prowizja agencji, %',
  's.czdef':'Czynsz, jeśli nie podano, zł/mies.',
@@ -357,8 +388,8 @@ pl:{
  'own.sum':'Rodzaj prawa do lokalu: założenia dotyczące kosztów i oprocentowania',
  'own.hint':'Dodatkowe koszty (KW, zaświadczenia, notariusz/sąd) są doliczane do gotówki na start, a marża podnosi oprocentowanie kredytu dla mieszkań z danym rodzajem prawa. Wartości są orientacyjne, potwierdź je w banku i u notariusza.',
  'own.th.type':'Rodzaj prawa','own.th.cost':'Koszty, zł','own.th.prem':'Marża do oprocentowania, p.p.',
- 'h.overview':'Przegląd wszystkich ofert','h.compare':'Porównanie dwóch mieszkań','h.add':'Dodaj mieszkanie z linku',
- 'h.all':'Wszystkie mieszkania','h.own':'Analiza rodzajów prawa do lokalu','h.verdicts':'Wnioski z Twojej tabeli',
+ 'h.overview':'Przegląd wszystkich ofert','h.compare':'Porównanie dwóch mieszkań','h.add':'Dodaj nieruchomość z linku',
+ 'h.all':'Wszystkie nieruchomości','h.own':'Analiza rodzajów prawa do lokalu','h.verdicts':'Wnioski z Twojej tabeli',
  'bars.hint':'Kliknij wiersz: pierwszy wybór trafia do miejsca A (niebieski), kolejny do miejsca B (pomarańczowy).',
  'pick.a':'Mieszkanie A','pick.b':'Mieszkanie B','pick.del':'Usuń z listy',
  'cmp.hint':'Zielone podświetlenie oznacza lepszy wynik w parze. Rata: annuitetowa (równe raty). Prowizja i remont to środek przedziału z Twojej tabeli. Dochód z wynajmu to szacunek z tabeli, bez podatków.',
@@ -369,7 +400,7 @@ pl:{
  'f.rmin':'Remont od, zł','f.rmax':'Remont do, zł','f.ormin':'Wynajem od, zł/mies.','f.ormax':'Wynajem do, zł/mies.',
  'f.feat':'Cechy','f.add':'Dodaj do porównania',
  'f.hint':'Autouzupełnianie działa przez lokalny serwer (<code>node server.js</code>) i tylko dla linków z Otodom i Morizon. Te serwisy nie podają wynajmu ani kosztów remontu, wpisz je samodzielnie, jeśli chcesz je uwzględnić. Dodane mieszkania są zapisywane w tej przeglądarce.',
- 'f.err.url':'Wklej link','f.loading':'Pobieram…','f.err.generic':'Błąd',
+ 'nav.mort':'Kredyt','nav.add':'Dodaj','nav.overview':'Przegląd','nav.compare':'Porównanie','nav.all':'Wszystkie','nav.own':'Prawo do lokalu','nav.verdicts':'Wnioski','mort.sum':'Kredyt hipoteczny (opcjonalnie)','mort.on':'Uwzględnij kredyt','mort.off':'Kredyt wyłączony: porównanie liczone jako zakup za środki własne (kwota na start = pełna cena + prowizja + remont).','c.monthly':'Miesięczne koszty','f.err.url':'Wklej link','f.loading':'Pobieram…','f.err.generic':'Błąd',
  'f.ok.fetch':'Dane pobrane. Sprawdź pola, zwłaszcza stan (ustalany na podstawie opisu).',
  'f.err.file':'Otwórz stronę przez lokalny serwer. ','f.err.fail':'Nie udało się pobrać: {e}. Możesz wpisać dane ręcznie.',
  'f.err.need':'Podaj cenę i powierzchnię','f.ok.added':'Dodano i wybrano w miejscu A ✓','f.defname':'Mieszkanie {p} zł',
@@ -400,7 +431,7 @@ pl:{
  'c.ex':'Wcześniejsza spłata','c.ex.extra':': +{x} zł/mies.','c.ex.lump':', {x} zł w mies. nr {m}',
  'c.ex.term':'Okres kredytu','c.ex.cut':'Skrócenie okresu','c.ex.after':'Rata po nadpłacie','c.ex.base':'Rata bazowa',
  'c.ex.int':'Odsetki (z nadpłatami)','c.ex.save':'Oszczędność na odsetkach','c.ex.fee':'Prowizja za wcześniejszą spłatę',
- 'c.ex.net':'Oszczędność netto (minus prowizja)','c.ex.hint':'Wpisz kwotę powyżej, aby zobaczyć oszczędność.',
+ 'c.ex.net':'Oszczędność netto (minus prowizja)','c.ex.hint':'Nie wypełniono. Wpisz dodatkową kwotę w bloku „Kredyt” → „Wcześniejsza spłata”, a tu pojawi się wyliczenie oszczędności.','c.how':'Jak to liczymy','how.mort':'{price} − wkład {dp}% ({down}) = kredyt {loan}. Oprocentowanie {rate}% na {term} → rata {pay}/mies.','how.add.extra':'+{x} miesięcznie','how.add.lump':'{x} w mies. nr {m}','how.fee':', minus prowizja banku {fee}','how.ex.term':'Według harmonogramu rata to {base}/mies. Wpłacasz dodatkowo: {add}. Rata się nie zmienia, więc kredyt skończy się za {new} zamiast {old}. Odsetki: {int} zamiast {baseInt} → oszczędność {saved}{fee}. Oszczędność netto: {net}.','how.ex.pay':'Według harmonogramu rata to {base}/mies. Wpłacasz dodatkowo: {add}. Okres zostaje {old}, a rata po spłacie spada do {after}/mies. Odsetki: {int} zamiast {baseInt} → oszczędność {saved}{fee}. Oszczędność netto: {net}.',
  'c.start':'Koszty początkowe','c.comm':'Prowizja agencji ({x}%)','c.reno':'Remont (średni szacunek)','c.noreno':'niepotrzebny','c.cash':'Gotówka na start',
  'c.rentsec':'Wynajem (szacunek z tabeli)','c.rent':'Wynajem / mies.','c.rentnet':'Wynajem minus rata i czynsz','c.yield':'Rentowność brutto / rok',
  'c.listing':'Ogłoszenie',
@@ -440,9 +471,9 @@ pl:{
  'v.6.t':'✨ Designerskie „pod klucz”','v.6.d':'Remont projektanta, meble i sprzęt, niski czynsz 665 zł.',
 },
 en:{
- 'page.title':'Apartments in Warsaw — comparison',
- 'h1':'Apartments in Warsaw: comparison and mortgage',
- 'sub':'Listings from Otodom. Pick two apartments and set up the mortgage to see the monthly payment.',
+ 'page.title':'Propertio',
+ 'h1':'Real estate: comparison and mortgage',
+ 'sub':'Add listings from links, pick two properties and set up the mortgage to see the monthly payment.',
  'm2':'m²','mo':'mo','yr':'y',
  's.dp':'Down payment','s.rate':'Interest rate, % per year','s.term':'Term, years','s.comm':'Agency commission, %',
  's.czdef':'Czynsz (building fee) if not stated, zł/mo',
@@ -454,8 +485,8 @@ en:{
  'own.sum':'Type of title: cost and interest rate assumptions',
  'own.hint':'Extra costs (KW, certificates, notary/court) are added to the cash needed upfront, and the surcharge raises the mortgage rate for apartments with that type of title. Values are approximate, confirm them with the bank and a notary.',
  'own.th.type':'Type of title','own.th.cost':'Costs, zł','own.th.prem':'Rate surcharge, pp',
- 'h.overview':'Overview of all listings','h.compare':'Compare two apartments','h.add':'Add an apartment from a link',
- 'h.all':'All apartments','h.own':'Title type analysis','h.verdicts':'Takeaways from your spreadsheet',
+ 'h.overview':'Overview of all listings','h.compare':'Compare two apartments','h.add':'Add a property from a link',
+ 'h.all':'All properties','h.own':'Title type analysis','h.verdicts':'Takeaways from your spreadsheet',
  'bars.hint':'Click a row: the first pick goes to slot A (blue), the next to slot B (orange).',
  'pick.a':'Apartment A','pick.b':'Apartment B','pick.del':'Remove from list',
  'cmp.hint':'Green highlight marks the better value in the pair. Payment: annuity (equal installments). Commission and renovation use the midpoint of the range from your spreadsheet. Rental income is an estimate from the spreadsheet, before tax.',
@@ -466,7 +497,7 @@ en:{
  'f.rmin':'Renovation from, zł','f.rmax':'Renovation to, zł','f.ormin':'Rent from, zł/mo','f.ormax':'Rent to, zł/mo',
  'f.feat':'Features','f.add':'Add to comparison',
  'f.hint':'Autofill works through the local server (<code>node server.js</code>) and only for Otodom and Morizon links. These sites do not provide rent or renovation costs, enter them yourself if you want them in the calculation. Added apartments are saved in this browser.',
- 'f.err.url':'Paste a link','f.loading':'Loading…','f.err.generic':'Error',
+ 'nav.mort':'Mortgage','nav.add':'Add','nav.overview':'Overview','nav.compare':'Compare','nav.all':'All properties','nav.own':'Title type','nav.verdicts':'Takeaways','mort.sum':'Mortgage (optional)','mort.on':'Use a mortgage','mort.off':'Mortgage is off: the comparison assumes buying with your own funds (cash needed = full price + commission + renovation).','c.monthly':'Monthly costs','f.err.url':'Paste a link','f.loading':'Loading…','f.err.generic':'Error',
  'f.ok.fetch':'Data fetched. Check the fields, especially the condition (it is guessed from the description).',
  'f.err.file':'Open the page through the local server. ','f.err.fail':'Could not fetch: {e}. You can enter the data manually.',
  'f.err.need':'Enter the price and area','f.ok.added':'Added and selected in slot A ✓','f.defname':'Apartment {p} zł',
@@ -497,7 +528,7 @@ en:{
  'c.ex':'Early repayment','c.ex.extra':': +{x} zł/mo','c.ex.lump':', {x} zł in month #{m}',
  'c.ex.term':'Loan term','c.ex.cut':'Term reduction','c.ex.after':'Payment after overpayment','c.ex.base':'Base payment',
  'c.ex.int':'Interest (with overpayments)','c.ex.save':'Interest saved','c.ex.fee':'Early repayment fee',
- 'c.ex.net':'Net savings (minus fee)','c.ex.hint':'Enter an amount above to see the savings.',
+ 'c.ex.net':'Net savings (minus fee)','c.ex.hint':'Not set. Enter an extra amount in the “Mortgage” → “Early repayment” block and the savings calculation will appear here.','c.how':'How it is calculated','how.mort':'{price} − down payment {dp}% ({down}) = loan {loan}. Rate {rate}% over {term} → payment {pay}/mo','how.add.extra':'+{x} monthly','how.add.lump':'{x} in month #{m}','how.fee':', minus bank fee {fee}','how.ex.term':'Scheduled payment is {base}/mo. You add: {add}. The payment stays the same, so the loan ends in {new} instead of {old}. Interest: {int} instead of {baseInt} → savings {saved}{fee}. Net savings: {net}.','how.ex.pay':'Scheduled payment is {base}/mo. You add: {add}. The term stays {old}, and the payment after repayment drops to {after}/mo. Interest: {int} instead of {baseInt} → savings {saved}{fee}. Net savings: {net}.',
  'c.start':'Upfront costs','c.comm':'Agency commission ({x}%)','c.reno':'Renovation (average estimate)','c.noreno':'not needed','c.cash':'Upfront cash',
  'c.rentsec':'Rent (estimate from spreadsheet)','c.rent':'Rent / mo','c.rentnet':'Rent minus payment and czynsz','c.yield':'Gross yield / year',
  'c.listing':'Listing',
@@ -605,6 +636,7 @@ const store = {
 let LINKS = store.get('links',{});
 let USER = store.get('user',[]);
 let CZOVR = store.get('czovr',{});
+let CMPCOL = store.get('cmpcol',[]);
 function prep(p){p.ppm=p.price/p.area; p.rentMid=(p.rent&&p.rent[0]!=null&&p.rent[1]!=null)?(p.rent[0]+p.rent[1])/2:null; return p}
 P.forEach(prep);
 USER.forEach(u=>P.push(prep(u)));
@@ -687,7 +719,7 @@ function monthly(loan, ratePct, years){
   return r===0 ? loan/n : loan*r/(1-Math.pow(1+r,-n));
 }
 const CZ_OPTS=[0,300,400,500,600,700,800,900,1000,1200,1500];
-const S = {favOnly:false, czDef:0, ex:{extra:0,lump:0,lumpM:12,mode:'term',fee:0}, dp:20, rate:6.5, term:30, comm:2.5, metric:'price', A:'bac', B:'g2'};
+const S = {mort:true, favOnly:false, czDef:0, ex:{extra:0,lump:0,lumpM:12,mode:'term',fee:0}, dp:20, rate:6.5, term:30, comm:2.5, metric:'price', A:'bac', B:'g2'};
 
 function amort(loan, ratePct, years, o){
   const N=years*12, r=ratePct/100/12, base=monthly(loan,ratePct,years);
@@ -710,7 +742,13 @@ function amort(loan, ratePct, years, o){
           saved:baseInterest-interest, netSaved:baseInterest-interest-fee, monthsSaved:N-m};
 }
 const exActive = () => (S.ex.extra>0||S.ex.lump>0);
-const fmtTerm = m => {const y=Math.floor(m/12), r=m%12; return (y?y+' '+t('yr')+' ':'')+(r?r+' '+t('mo'):(y?'':'0'))};
+const howMort=(p,c)=>t('how.mort',{price:zl(p.price),dp:S.dp,down:zl(c.down),loan:zl(c.loan),rate:dec(c.effRate,0,2),term:S.term+' '+t('yr'),pay:zl(c.pay)});
+function howEx(c){
+  const e=c.ea, add=[S.ex.extra>0?t('how.add.extra',{x:zl(S.ex.extra)}):'',S.ex.lump>0?t('how.add.lump',{x:zl(S.ex.lump),m:S.ex.lumpM}):''].filter(Boolean).join(' + ')||'—';
+  const old=fmtTerm(S.term*12), fee=e.fee>0?t('how.fee',{fee:zl(e.fee)}):'';
+  return t(S.ex.mode==='pay'?'how.ex.pay':'how.ex.term',{base:zl(e.base),add,new:fmtTerm(e.months),old,after:zl(e.payAfter),int:zl(e.interest),baseInt:zl(e.baseInterest),saved:zl(e.saved),fee,net:zl(e.netSaved)});
+}
+const fmtTerm = m => {const y=Math.floor(m/12), r=m%12; return ((y?y+' '+t('yr')+' ':'')+(r?r+' '+t('mo'):(y?'':'0'))).trim()};
 function czEff(p){
   if(CZOVR[p.id]!=null) return {v:CZOVR[p.id], src:'own'};
   if(p.czynsz!=null) return {v:p.czynsz, src:'listing'};
@@ -718,10 +756,10 @@ function czEff(p){
 }
 const czLabel = p => {const c=czEff(p); return c.src==='listing'?zl(c.v):c.src==='none'?t('cz.none'):'~'+zl(c.v)};
 function calc(p){
-  const down = p.price*S.dp/100;
+  const down = S.mort ? p.price*S.dp/100 : p.price;
   const loan = p.price-down;
   const o = ownCfg(ownOf(p));
-  const effRate = S.rate + (o.prem||0);
+  const effRate = S.mort ? S.rate + (o.prem||0) : 0;
   const pay = monthly(loan,effRate,S.term);
   const total = pay*S.term*12;
   const comm = p.agency ? p.price*S.comm/100 : 0;
@@ -771,7 +809,7 @@ const METRICS = {
   rent:{l:'m.rent', f:p=>p.rentMid, fmt:v=>zl(v)},
 };
 function renderTabs(){
-  $('#metricTabs').innerHTML=Object.entries(METRICS).map(([k,m])=>`<button class="tab" data-k="${k}" aria-pressed="${k===S.metric}">${t(m.l)}</button>`).join('');
+  $('#metricTabs').innerHTML=Object.entries(METRICS).filter(([k])=>S.mort||k!=='pay').map(([k,m])=>`<button class="tab" data-k="${k}" aria-pressed="${k===S.metric}">${t(m.l)}</button>`).join('');
   document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.metric=b.dataset.k;renderTabs();renderBars()});
 }
 function renderBars(){
@@ -836,7 +874,7 @@ function renderCompare(){
   // row: [label, valA, valB, compareA, compareB, better('low'|'high'|null), html fn]
   const num=(label,va,vb,f,better,big)=>({label,va,vb,f,better,big});
   const rows=[
-   {sec:t('c.basic')},
+   {sec:t('c.basic'),key:'basic'},
    num(t('c.price'),a.price,b.price,zl,'low',1),
    num(t('c.area'),a.area,b.area,m2,'high'),
    num(t('c.ppm'),a.ppm,b.ppm,v=>zl(v)+'/'+t('m2'),'low'),
@@ -848,22 +886,28 @@ function renderCompare(){
    {label:t('c.metro'),va:esc(fld(a,'metro')),vb:esc(fld(b,'metro'))},
    {label:t('c.seller'),va:esc(fld(a,'seller')),vb:esc(fld(b,'seller'))},
    {label:t('c.feat'),va:`<span class="feat">${esc(fld(a,'feat'))}</span>`,vb:`<span class="feat">${esc(fld(b,'feat'))}</span>`},
-   {sec:t('c.ownsec')},
+   {sec:t('c.ownsec'),key:'own'},
    {label:t('c.own'),va:ownCell(a),vb:ownCell(b)},
    num(t('c.risk'),OWN[ownOf(a)].risk,OWN[ownOf(b)].risk,v=>v==null?t('risk.na'):t('risk.'+v),'low'),
    num(t('c.owncost'),ca.ownCost,cb.ownCost,v=>v?zl(v):'0 zł','low'),
-   {sec:t('c.mort',{dp:S.dp,r:dec(S.rate,0,2),t:S.term})},
+   {sec:S.mort?t('c.mort',{dp:S.dp,r:dec(S.rate,0,2),t:S.term}):t('c.monthly'),key:'mort'},
+   ...(S.mort?[
    num(t('c.down'),ca.down,cb.down,zl,'low'),
    num(t('c.loan'),ca.loan,cb.loan,zl,'low'),
    num(t('c.effrate'),ca.effRate,cb.effRate,v=>dec(v,2)+'%','low'),
    num(t('c.pay'),ca.pay,cb.pay,zl,'low',1),
+   {label:t('c.how'),va:`<span class="feat">${howMort(a,ca)}</span>`,vb:`<span class="feat">${howMort(b,cb)}</span>`},
+   ]:[]),
    num(t('c.cz'),ca.cz,cb.cz,zl,'low'),
    {label:t('c.owncz'),va:czCell(a),vb:czCell(b)},
    num(t('c.monthall'),ca.monthAll,cb.monthAll,zl,'low',1),
+   ...(S.mort?[
    num(t('c.interest'),ca.interest,cb.interest,zl,'low'),
    num(t('c.total'),ca.total,cb.total,zl,'low'),
-   ...(exActive()?[
-   {sec:t('c.ex')+(S.ex.extra>0?t('c.ex.extra',{x:fmt(S.ex.extra)}):'')+(S.ex.lump>0?t('c.ex.lump',{x:fmt(S.ex.lump),m:S.ex.lumpM}):'')},
+   ]:[]),
+   ...(!S.mort?[]:exActive()?[
+   {key:'ex',sec:t('c.ex')+(S.ex.extra>0?t('c.ex.extra',{x:fmt(S.ex.extra)}):'')+(S.ex.lump>0?t('c.ex.lump',{x:fmt(S.ex.lump),m:S.ex.lumpM}):'')},
+   {label:t('c.how'),va:`<span class="feat">${howEx(ca)}</span>`,vb:`<span class="feat">${howEx(cb)}</span>`},
    num(t('c.ex.term'),ca.ea.months,cb.ea.months,fmtTerm,'low'),
    num(t('c.ex.cut'),ca.ea.monthsSaved,cb.ea.monthsSaved,fmtTerm,'high'),
    num(t(S.ex.mode==='pay'?'c.ex.after':'c.ex.base'),ca.ea.payAfter,cb.ea.payAfter,zl,'low'),
@@ -871,19 +915,20 @@ function renderCompare(){
    num(t('c.ex.save'),ca.ea.saved,cb.ea.saved,zl,'high'),
    num(t('c.ex.fee'),ca.ea.fee,cb.ea.fee,zl,'low'),
    num(t('c.ex.net'),ca.ea.netSaved,cb.ea.netSaved,zl,'high',1),
-   ]:[{sec:t('c.ex')},{label:'',va:`<span class="feat">${t('c.ex.hint')}</span>`,vb:''}]),
-   {sec:t('c.start')},
+   ]:[{sec:t('c.ex'),key:'ex'},{label:'',va:`<span class="feat">${t('c.ex.hint')}</span>`,vb:''}]),
+   {sec:t('c.start'),key:'start'},
    num(t('c.comm',{x:dec(S.comm,0,2)}),ca.comm,cb.comm,zl,'low'),
    num(t('c.reno'),ca.reno,cb.reno,v=>v?zl(v):t('c.noreno'),'low'),
    num(t('c.cash'),ca.cash,cb.cash,zl,'low',1),
-   {sec:t('c.rentsec')},
+   {sec:t('c.rentsec'),key:'rent'},
    {label:t('c.rent'),va:rentTxt(a),vb:rentTxt(b)},
    num(t('c.rentnet'),ca.net,cb.net,v=>v==null?'—':`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':'−'}${zl(Math.abs(v))}</span>`,'high'),
    num(t('c.yield'),a.rentMid==null?null:a.rentMid*12/a.price*100,b.rentMid==null?null:b.rentMid*12/b.price*100,v=>v==null?'—':dec(v,2)+'%','high'),
   ];
   let html=`<tr><th class="k"></th><th style="color:var(--a)">A · ${esc(nm(a))} ${favBtn(a)}</th><th style="color:var(--b)">B · ${esc(nm(b))} ${favBtn(b)}</th></tr>`;
+  let gk='',shut=false;
   for(const r of rows){
-    if(r.sec){html+=`<tr class="sec"><th colspan="3">${r.sec}</th></tr>`;continue}
+    if(r.sec){gk=r.key;shut=CMPCOL.includes(gk);html+=`<tr class="sec ${shut?'shut':''}" data-sec="${gk}"><th colspan="3"><span class="chev">▾</span>${r.sec}</th></tr>`;continue}
     let ca_='',cb_='',ta,tb;
     if(r.f){
       let wa=false,wb=false;
@@ -896,16 +941,20 @@ function renderCompare(){
       if(r.big){ta=`<span class="big">${ta}</span>`;tb=`<span class="big">${tb}</span>`}
       ta=`<b style="font-weight:inherit">${ta}</b>`; tb=`<b style="font-weight:inherit">${tb}</b>`;
     } else {ta=r.va;tb=r.vb}
-    html+=`<tr><th class="k">${r.label}</th><td class="${ca_}">${ta}</td><td class="${cb_}">${tb}</td></tr>`;
+    html+=`<tr${shut?' hidden':''}><th class="k">${r.label}</th><td class="${ca_}">${ta}</td><td class="${cb_}">${tb}</td></tr>`;
   }
   html+=`<tr><th class="k">${t('c.listing')}</th><td>${linkCell(a)}</td><td>${linkCell(b)}</td></tr>`;
   $('#cmp').innerHTML=html;
   bindLinkBtns($('#cmp')); bindOwnSel($('#cmp')); bindCz($('#cmp'));
+  $('#cmp').querySelectorAll('tr.sec').forEach(tr=>tr.onclick=()=>{
+    const k=tr.dataset.sec; CMPCOL=CMPCOL.includes(k)?CMPCOL.filter(x=>x!==k):[...CMPCOL,k];
+    store.set('cmpcol',CMPCOL); renderCompare();
+  });
 }
 
 // ---------- ТАБЛИЦЯ ----------
 let sortK='price', sortDir=1;
-const COLS=[
+const COLS_ALL=[
  ['name','col.name',p=>nm(p),p=>favBtn(p)+esc(nm(p))+(p.fresh?` <span class="tag ok">${t('tag.new')}</span>`:'')],
  ['dist','col.dist',p=>p.dist,p=>esc(p.dist)],
  ['price','col.price',p=>p.price,p=>zl(p.price)],
@@ -923,7 +972,8 @@ const COLS=[
  ['pick','col.pick',null,p=>`<button class="btn a" data-a="${p.id}">A</button> <button class="btn b" data-b="${p.id}">B</button> <button class="btn x" data-del="${p.id}" title="${t('del.title')}">✕</button>`],
 ];
 function renderAll(){
-  const col=COLS.find(c=>c[0]===sortK)||COLS[2];
+  const COLS=COLS_ALL.filter(c=>S.mort||!['pay','saved'].includes(c[0]));
+  const col=COLS.find(c=>c[0]===sortK)||COLS.find(c=>c[0]==='price');
   const rows=P.filter(p=>!S.favOnly||FAV.has(p.id)).sort((x,y)=>{const a=col[2]?col[2](x):0,b=col[2]?col[2](y):0;return (a>b?1:a<b?-1:0)*sortDir});
   $('#all').innerHTML=`<thead><tr>${COLS.map(c=>`<th data-k="${c[0]}">${t(c[1])}${c[0]===sortK?(sortDir>0?' ▲':' ▼'):''}</th>`).join('')}</tr></thead>
    <tbody>${rows.map(p=>`<tr>${COLS.map((c,i)=>`<td class="${i===0?'n':''}">${c[3](p)}</td>`).join('')}</tr>`).join('')}</tbody>`;
@@ -1064,7 +1114,17 @@ function initExPanel(){
   ['ex_extra','ex_lump','ex_month'].forEach(id=>$('#'+id).oninput=read);
   ['ex_mode','ex_fee'].forEach(id=>$('#'+id).onchange=read);
 }
-function update(){renderBars();renderCompare();renderAll();renderOwnAnalysis()}
+function syncMort(){
+  $('#mortBox').classList.toggle('off',!S.mort); $('#mortOn').checked=S.mort;
+  if(!S.mort&&S.metric==='pay')S.metric='price';
+}
+$('#mortBox>summary').addEventListener('click',e=>{
+  if(!e.target.closest('.mort-toggle'))return;
+  e.preventDefault(); S.mort=!S.mort; store.set('mort',S.mort);
+  syncMort(); renderTabs(); update();
+});
+$('#mortBox').addEventListener('toggle',()=>store.set('mortopen',$('#mortBox').open));
+function update(){syncMort();renderBars();renderCompare();renderAll();renderOwnAnalysis()}
 
 // ---------- МОВА ----------
 function applyStatic(){
@@ -1088,7 +1148,29 @@ function setLang(l){
 $('#langSel').onchange=e=>setLang(e.target.value);
 if(!byId(S.A))S.A=(P.find(x=>x.id!==S.B)||P[0]).id;
 if(!byId(S.B))S.B=(P.find(x=>x.id!==S.A)||P[0]).id;
+S.mort=store.get('mort',true); $('#mortBox').open=store.get('mortopen',true);
 initExPanel(); renderLang();
+// ---------- навігація по секціях ----------
+(function(){
+  const nav=$('#secnav'), links=[...nav.querySelectorAll('a')];
+  const target=h=>{try{return document.querySelector(h)}catch(e){return null}};
+  function go(h,push){
+    const el=target(h); if(!el)return;
+    if(el.id==='mortBox')el.open=true;
+    el.scrollIntoView({behavior:'smooth',block:'start'});
+    if(push)try{history.replaceState(null,'',h)}catch(e){}
+    setTimeout(spy,120);
+  }
+  links.forEach(a=>a.onclick=e=>{e.preventDefault();go(a.getAttribute('href'),true)});
+  const els=links.map(a=>target(a.getAttribute('href')));
+  function spy(){
+    let cur=0; els.forEach((el,i)=>{if(el&&el.getBoundingClientRect().top<=120)cur=i});
+    links.forEach((a,i)=>a.classList.toggle('on',i===cur));
+    const on=links[cur]; if(on&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:on.offsetLeft-16,behavior:'smooth'});
+  }
+  addEventListener('scroll',spy,{passive:true}); spy();
+  if(location.hash)setTimeout(()=>go(location.hash,false),50);
+})();
 </script>
 </body>
 </html>
