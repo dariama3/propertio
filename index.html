@@ -4,23 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Квартири у Варшаві — порівняння</title>
+<link rel="icon" href="assets/favicon-light.ico" sizes="any">
+<link rel="icon" href="assets/favicon-light.ico" sizes="any" media="(prefers-color-scheme: light)">
+<link rel="icon" href="assets/favicon-dark.ico" sizes="any" media="(prefers-color-scheme: dark)">
 <style>
 :root{
   --bg:#f6f7f9; --card:#fff; --ink:#1b1f24; --muted:#6a7380; --line:#e3e6ea;
   --a:#2a6df4; --a-soft:#e6eefe; --b:#e8710a; --b-soft:#fdeedd;
-  --good:#17803d; --good-soft:#e2f5e8; --bad:#b42318; --bar:#c9d0da;
+  --good:#17803d; --good-soft:#e2f5e8; --bad:#b42318; --bar:#c9d0da; --logo-line:#000; --brand-b:#375EEB;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#101317; --card:#181c22; --ink:#e8ebef; --muted:#93a0af; --line:#2a313a;
     --a:#6b9bff; --a-soft:#1c2a47; --b:#ffa04d; --b-soft:#3a2a18;
-    --good:#5fd08a; --good-soft:#163222; --bad:#ff8a80; --bar:#394250;
+    --good:#5fd08a; --good-soft:#163222; --bad:#ff8a80; --bar:#394250; --logo-line:transparent; --brand-b:#6f8dff;
   }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .wrap{max-width:1180px;margin:0 auto;padding:0 16px 64px}
 header{padding:28px 0 8px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px 14px 10px 12px;box-shadow:0 1px 2px rgba(16,24,40,.05),0 4px 14px rgba(16,24,40,.04)}
+.brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none}
+.brand-logo{width:50px;height:50px;flex:none;display:grid;place-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+.brand-logo svg{width:34px;height:auto;display:block}
+.brand-logo .ln{stroke:var(--logo-line,#000)}
+.brand-name{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1;background:linear-gradient(90deg,#E09132 30%,var(--brand-b,#375EEB) 60%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero{padding:22px 2px 0}
 h1{margin:0 0 4px;font-size:26px}
 h2{margin:36px 0 12px;font-size:20px}
 .sub{color:var(--muted);margin:0}
@@ -107,7 +117,7 @@ details.card summary{cursor:pointer;font-weight:600}
 .own-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
 .own-grid h3{margin:0 0 6px;font-size:15px}.own-grid ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
 .own-grid .flats{font-size:13px;margin:4px 0}
-.langbar{display:flex;justify-content:flex-end;gap:6px;margin-bottom:8px}
+.langbar{display:flex;justify-content:flex-end;gap:6px}
 @media (max-width:720px){
   .bar-row{grid-template-columns:1fr 90px;grid-template-areas:"n v" "t t"}
   .bar-row .name{grid-area:n} .bar-row .val{grid-area:v} .bar-row .track{grid-area:t}
@@ -119,15 +129,23 @@ details.card summary{cursor:pointer;font-weight:600}
 <body>
 <div class="wrap">
 <header>
-  <div class="langbar">
-    <select id="langSel" aria-label="Language">
-      <option value="uk">UA</option>
-      <option value="pl">PL</option>
-      <option value="en">EN</option>
-    </select>
+  <div class="topbar">
+    <a class="brand" href="./" aria-label="Propertio">
+      <span class="brand-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 830" aria-hidden="true"><g class="ln" stroke-width="40" stroke-linejoin="miter"><polygon fill="#E09132" points="55,805 48,290 640,38 640,125 345,295 347,802"/><polygon fill="#375EEB" points="432,35 1027,290 1020,805 730,800 735,295 432,165"/></g></svg></span>
+      <span class="brand-name">Propertio</span>
+    </a>
+    <div class="langbar">
+      <select id="langSel" aria-label="Language">
+        <option value="uk">UA</option>
+        <option value="pl">PL</option>
+        <option value="en">EN</option>
+      </select>
+    </div>
   </div>
-  <h1 data-i18n="h1"></h1>
-  <p class="sub" data-i18n="sub"></p>
+  <div class="hero">
+    <h1 data-i18n="h1"></h1>
+    <p class="sub" data-i18n="sub"></p>
+  </div>
 </header>
 
 <div class="grid kpis" id="kpis"></div>
@@ -228,7 +246,7 @@ let LANG = (()=>{
 })();
 const I18N = {
 uk:{
- 'page.title':'Квартири у Варшаві — порівняння',
+ 'page.title':'Propertio',
  'h1':'Квартири у Варшаві: порівняння та іпотека',
  'sub':'Пропозиції з Otodom. Оберіть дві квартири й налаштуйте іпотеку, щоб побачити щомісячний платіж.',
  'm2':'м²','mo':'міс.','yr':'р.',

@@ -15,5 +15,14 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(await readFile(new URL('./index.html', import.meta.url)));
   }
+  const types = { svg: 'image/svg+xml', ico: 'image/x-icon', png: 'image/png' };
+  const m = u.pathname.match(/^\/assets\/([\w-]+\.(svg|ico|png))$/);
+  if (m) {
+    try {
+      const body = await readFile(new URL('./assets/' + m[1], import.meta.url));
+      res.writeHead(200, { 'Content-Type': types[m[2]] });
+      return res.end(body);
+    } catch {}
+  }
   res.writeHead(404); res.end('Not found');
 }).listen(port, '0.0.0.0', () => console.log(`http://localhost:${port}`));
