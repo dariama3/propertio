@@ -15,6 +15,14 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     return res.end(await readFile(new URL('./index.html', import.meta.url)));
   }
+  const st = u.pathname.match(/^\/(js|css)\/([\w-]+\.(js|css))$/);
+  if (st) {
+    try {
+      const body = await readFile(new URL(`./${st[1]}/${st[2]}`, import.meta.url));
+      res.writeHead(200, { 'Content-Type': (st[3] === 'js' ? 'text/javascript' : 'text/css') + '; charset=utf-8' });
+      return res.end(body);
+    } catch {}
+  }
   const types = { svg: 'image/svg+xml', ico: 'image/x-icon', png: 'image/png' };
   const m = u.pathname.match(/^\/assets\/([\w-]+\.(svg|ico|png))$/);
   if (m) {
