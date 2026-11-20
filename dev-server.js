@@ -1,4 +1,4 @@
-// Локальний сервер (замість php -S): node server.js  →  http://0.0.0.0:8000
+// Локальний сервер (замість php -S): node dev-server.js  →  http://0.0.0.0:8000
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { parseListing } from './lib/listing.js';

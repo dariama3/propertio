@@ -6,7 +6,7 @@ PROPERTIO: ЗАПУСК І ХОСТИНГ
   api/fetch.js      автозаповнення з Otodom (серверна функція Vercel)
   lib/otodom.js     розбір оголошення Otodom
   middleware.js     пароль на весь сайт (вмикається змінною SITE_PASSWORD)
-  server.js         локальний сервер (замість PHP)
+  dev-server.js     локальний сервер (замість PHP)
   vercel.json, package.json
   legacy/index.php  стара PHP-версія, більше не використовується
 
@@ -20,12 +20,12 @@ PROPERTIO: ЗАПУСК І ХОСТИНГ
 1. Запуск (потрібен Node.js 20+, у вас вже є):
 
        cd /Users/daria_ma3/Projects/propertio
-       node server.js
+       node dev-server.js
 
    Сторінка: http://localhost:8000
    Не закривайте вікно Терміналу. У фоні:
 
-       nohup node server.js > /tmp/propertio.log 2>&1 &
+       nohup node dev-server.js > /tmp/propertio.log 2>&1 &
 
 2. Адреса для телефона:
 
@@ -37,15 +37,15 @@ PROPERTIO: ЗАПУСК І ХОСТИНГ
 3. Перевірка:
 
        curl -I http://localhost:8000/
-       pgrep -fl "node server.js"
+       pgrep -fl "node dev-server.js"
 
 4. Зупинка: Ctrl+C у вікні сервера, або
 
-       pkill -f "node server.js"
+       pkill -f "node dev-server.js"
 
 5. Щоб Mac не засинав:
 
-       caffeinate -i node server.js
+       caffeinate -i node dev-server.js
 
 6. Якщо не відкривається з телефона:
    - обидва пристрої в одній Wi-Fi мережі?
@@ -56,7 +56,7 @@ PROPERTIO: ЗАПУСК І ХОСТИНГ
          sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which node)
    - на роутері ввімкнена ізоляція клієнтів (AP/Client isolation)? Вимкніть.
    - IP змінився? Дізнайтеся знову (крок 2).
-   - порт зайнятий? PORT=8080 node server.js
+   - порт зайнятий? PORT=8080 node dev-server.js
 
 
 ЧАСТИНА 2. ХОСТИНГ НА VERCEL

@@ -2,7 +2,7 @@
   "name": "propertio",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js" },
+  "scripts": { "start": "node dev-server.js" },
   "engines": { "node": ">=20" },
   "dependencies": { "@vercel/functions": "^3.4.0" }
 }
