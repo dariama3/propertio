@@ -67,9 +67,11 @@ function removeFlat(id){
   if(!byId(S.A))S.A=(P.find(x=>x.id!==S.B)||P[0]).id;
   if(!byId(S.B))S.B=(P.find(x=>x.id!==S.A)||P[0]).id;
   renderPickers(); renderKpis(); update();
+  isUser?Cloud.removeFlat(id):Cloud.setHidden(id,true);
 }
 function restoreHidden(){
   HIDDEN=[]; store.set('hidden',HIDDEN);
   P.length=0; ALL.forEach(p=>P.push(p));
   renderPickers(); renderKpis(); update();
+  Cloud.clearHidden();
 }

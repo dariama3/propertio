@@ -5,7 +5,8 @@ async function fetchOtodom(){
   if(!url){setMsg(F('fmsg'),t('f.err.url'),'err');return}
   setMsg(F('fmsg'),t('f.loading'));
   try{
-    const r=await fetch('api/fetch?url='+encodeURIComponent(url));
+    const tok=await Cloud.token(), ws=Cloud.wsId();
+    const r=await fetch('api/fetch?url='+encodeURIComponent(url)+(ws?'&ws='+ws:''),{headers:tok?{Authorization:'Bearer '+tok}:{}});
     let d; try{d=await r.json()}catch(_){throw new Error(t('err.noapi'))}
     if(!r.ok||d.error)throw new Error(d.code?t('err.'+d.code,{s:d.status}):(d.error||t('f.err.generic')));
     const dup=findDup(d.url||url); if(dup){setMsg(F('fmsg'),dupMsg(dup),'err');return}
@@ -27,6 +28,7 @@ function addFlat(){
   const n=v=>{const x=parseFloat(F(v).value);return isNaN(x)?null:x};
   const sellerType=F('f_agency').value, agency=sellerType==='1', dev=sellerType==='dev', url=F('f_url').value.trim();
   const dup=url&&findDup(url); if(dup){setMsg(F('amsg'),dupMsg(dup),'err');return}
+  const can=Cloud.canAddFlat(); if(!can.ok){setMsg(F('amsg'),t(can.err,{n:can.limit}),'err');return}
   const rmin=n('f_rmin')||0, rmax=n('f_rmax')||rmin;
   const u={
     id:'u'+Date.now().toString(36), user:true, own:F('f_own').value,
@@ -40,6 +42,7 @@ function addFlat(){
     metro:'—', feat:F('f_feat').value.trim()||'—', url
   };
   USER.push(u); store.set('user',USER); P.push(prep(u)); ALL.push(u);
+  Cloud.upsertFlat(u).then(r=>{ if(!r.ok){ dropLocalFlat(u.id); setMsg(F('amsg'),t(r.err,{n:r.limit}),'err'); } });
   S.B=S.A; S.A=u.id; nextSlot='B';
   renderPickers(); renderKpis();
   F('f_own').value='unknown'; ['f_url','f_name','f_price','f_area','f_rooms','f_floor','f_year','f_dist','f_czynsz','f_feat','f_ormin','f_ormax'].forEach(i=>F(i).value='');

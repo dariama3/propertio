@@ -8,7 +8,7 @@ $('#mortBox>summary').addEventListener('click',e=>{
   syncMort(); renderTabs(); update();
 });
 $('#mortBox').addEventListener('toggle',()=>store.set('mortopen',$('#mortBox').open));
-function update(){syncMort();renderBars();renderCompare();renderAll();renderOwnAnalysis()}
+function update(){saveS();syncMort();renderBars();renderCompare();renderAll();renderOwnAnalysis()}
 
 // ---------- МОВА ----------
 function applyStatic(){
@@ -30,7 +30,16 @@ function setLang(l){
   renderLang();
 }
 $('#langSel').onchange=e=>setLang(e.target.value);
+// значення блоку дострокового погашення беруться зі стану S
+function syncExInputs(){
+  $('#ex_extra').value=S.ex.extra||''; $('#ex_lump').value=S.ex.lump||'';
+  $('#ex_month').value=S.ex.lumpM; $('#ex_mode').value=S.ex.mode; $('#ex_fee').value=String(S.ex.fee||0);
+}
+// повне перемалювання після зміни стану ззовні (хмара)
+function refreshUI(){ syncExInputs(); renderLang(); }
+
+loadS();
 if(!byId(S.A))S.A=(P.find(x=>x.id!==S.B)||P[0]).id;
 if(!byId(S.B))S.B=(P.find(x=>x.id!==S.A)||P[0]).id;
 S.mort=store.get('mort',true); $('#mortBox').open=store.get('mortopen',true);
-initExPanel(); renderLang();
+initExPanel(); syncExInputs(); renderLang();
