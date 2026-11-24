@@ -1,15 +1,38 @@
 // Локальний сервер (замість php -S): node dev-server.js  →  http://0.0.0.0:8000
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { parseListing } from './lib/listing.js';
+
+try { process.loadEnvFile(new URL('./.env', import.meta.url)); } catch {}
+try { process.loadEnvFile(new URL('./.env.local', import.meta.url)); } catch {}
 
 const port = process.env.PORT || 8000;
+
+// Запускає api/<name>.js так, як це робить Vercel: (req,res) або Web-обробники GET/POST
+async function runApi(name, u, req, res) {
+  let mod;
+  try { mod = await import(new URL(`./api/${name}.js?t=${Date.now()}`, import.meta.url)); }
+  catch { res.writeHead(404); return res.end('Not found'); }
+
+  const web = mod[req.method];
+  if (web) {
+    const chunks = []; for await (const c of req) chunks.push(c);
+    const r = await web(new Request(u.href, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : Buffer.concat(chunks) }));
+    res.writeHead(r.status, Object.fromEntries(r.headers));
+    return res.end(Buffer.from(await r.arrayBuffer()));
+  }
+  if (!mod.default) { res.writeHead(405); return res.end('Method not allowed'); }
+  req.query = Object.fromEntries(u.searchParams);
+  res.status = code => { res.statusCode = code; return res; };
+  res.json = body => { res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.end(JSON.stringify(body)); };
+  await mod.default(req, res);
+}
+
 http.createServer(async (req, res) => {
-  const u = new URL(req.url, 'http://x');
-  if (u.pathname === '/api/fetch') {
-    const [status, body] = await parseListing(u.searchParams.get('url'));
-    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    return res.end(JSON.stringify(body));
+  const u = new URL(req.url, 'http://localhost');
+  const api = u.pathname.match(/^\/api\/([\w-]+)$/);
+  if (api) {
+    try { return await runApi(api[1], u, req, res); }
+    catch (e) { console.error(e); if (!res.headersSent) res.writeHead(500); return res.end('Server error'); }
   }
   if (u.pathname === '/' || u.pathname === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

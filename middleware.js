@@ -1,7 +1,8 @@
 // Пароль на весь сайт (HTTP Basic). Вмикається, якщо в Vercel задано SITE_PASSWORD.
 import { next } from '@vercel/functions';
 
-export const config = { matcher: '/:path*' };
+// /api/webhook без пароля: платіжний шлюз не вміє Basic Auth (підпис перевіряється в самому ендпоінті)
+export const config = { matcher: '/((?!api/webhook).*)' };
 
 export default function middleware(request) {
   const pass = process.env.SITE_PASSWORD;
