@@ -8,6 +8,7 @@ async function fetchOtodom(){
     const tok=await Cloud.token(), ws=Cloud.wsId();
     const r=await fetch('api/fetch?url='+encodeURIComponent(url)+(ws?'&ws='+ws:''),{headers:tok?{Authorization:'Bearer '+tok}:{}});
     let d; try{d=await r.json()}catch(_){throw new Error(t('err.noapi'))}
+    if(d.code==='pro_required'||d.code==='auth_required')Account.upsell(d.code);
     if(!r.ok||d.error)throw new Error(d.code?t('err.'+d.code,{s:d.status}):(d.error||t('f.err.generic')));
     const dup=findDup(d.url||url); if(dup){setMsg(F('fmsg'),dupMsg(dup),'err');return}
     const set=(id,v)=>{if(v!=null&&v!=='')F(id).value=v};

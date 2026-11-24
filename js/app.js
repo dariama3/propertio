@@ -23,6 +23,7 @@ function renderLang(){
   applyStatic();
   $('#f_own').innerHTML=OWN_KEYS.map(k=>`<option value="${k}">${ownTxt(k,'l')}</option>`).join(''); $('#f_own').value=own;
   renderOwnSettings(); renderKpis(); initSettings(); renderTabs(); renderPickers(); renderVerdicts(); update();
+  if(typeof Account!=='undefined')Account.render();
 }
 function setLang(l){
   if(!LOCALES[l])return;

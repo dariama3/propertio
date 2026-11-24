@@ -12,6 +12,7 @@ const Cloud = (() => {
     del:k=>{ try{localStorage.removeItem('propertio.'+k)}catch(e){} },
   };
 
+  let checkoutUrl=null;
   let sb=null, user=null, profile=null, ownerPro=false, workspaces=[], ws=null;
   let status='guest', lastError=null;          // guest | syncing | synced | error
   let channel=null, profChannel=null, channelDown=false;
@@ -23,7 +24,7 @@ const Cloud = (() => {
   const canon = v => JSON.stringify(v,(k,x)=>x&&typeof x==='object'&&!Array.isArray(x)?Object.fromEntries(Object.keys(x).sort().map(y=>[y,x[y]])):x);
   const active = () => !!(sb&&user&&ws);
   const state = () => ({status, error:lastError, user:user&&{id:user.id,email:user.email}, profile, ws, workspaces, ownerPro,
-    isPro:!!profile?.is_pro, pendingInvite:!!sessionStorage.getItem('propertio.invite'), freeLimit:FREE_LIMIT});
+    isPro:!!profile?.is_pro, pendingInvite:!!sessionStorage.getItem('propertio.invite'), freeLimit:FREE_LIMIT, checkoutUrl});
   const emit = () => listeners.forEach(f=>{ try{f(state())}catch(e){console.error(e)} });
   const setStatus = (s,err=null) => { status=s; lastError=err; emit(); };
   const sleep = ms => new Promise(r=>setTimeout(r,ms));
@@ -286,6 +287,7 @@ const Cloud = (() => {
     }
     if(!window.supabase)return;                       // CDN недоступний → працюємо як гість
     let cfg; try{ const r=await fetch('api/config'); if(!r.ok)return; cfg=await r.json(); }catch(e){ return; }
+    checkoutUrl=cfg.checkoutUrl||null;
     sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 
     store.onSet=k=>{
@@ -304,7 +306,32 @@ const Cloud = (() => {
     emit();
   }
 
+  // ───────── учасники та списки ─────────
+  async function members(){
+    const {data,error}=await sb.from('workspace_members').select('user_id, role, profiles(email)').eq('workspace_id',ws.id).order('joined_at');
+    if(error)throw error;
+    return data.map(m=>({id:m.user_id,role:m.role,email:m.profiles?.email||''}));
+  }
+  async function afterListChange(pick){ await loadWorkspaces(); await selectWorkspace(pick); }
+  const guard = f => async (...a) => { try{ return {ok:true,value:await f(...a)}; }catch(e){ return fail(e); } };
+  const removeMember = guard(async uid=>{
+    const {error}=await sb.from('workspace_members').delete().eq('workspace_id',ws.id).eq('user_id',uid);
+    if(error)throw error;
+  });
+  const leave = guard(async ()=>{
+    const {error}=await sb.from('workspace_members').delete().eq('workspace_id',ws.id).eq('user_id',user.id);
+    if(error)throw error;
+    await loadWorkspaces(); await selectWorkspace((workspaces.find(w=>w.owner_id===user.id)||workspaces[0])?.id);
+  });
+  const createWorkspace = guard(async name=>{ await flushSettings(); await afterListChange(await rpc('create_workspace',{p_name:name})); });
+  const deleteWorkspace = guard(async ()=>{
+    await rpc('delete_workspace',{p_workspace_id:ws.id});
+    await loadWorkspaces(); await selectWorkspace(workspaces.find(w=>w.owner_id===user.id)?.id);
+  });
+  const renewInvite = guard(async ()=>{ const c=await rpc('regenerate_invite_code',{p_workspace_id:ws.id}); ws={...ws,invite_code:c}; emit(); });
+
   const api = {
+    members, removeMember, leave, createWorkspace, deleteWorkspace, renewInvite,
     init, state, token, canAddFlat, upsertFlat, removeFlat, setHidden, clearHidden, flushSettings, refresh,
     switchWorkspace, join, signInGoogle, signInEmail, signOut,
     wsId:()=>ws?ws.id:null,

@@ -23,6 +23,15 @@
       <span class="brand-name">Propertio</span>
     </a>
     <div class="langbar">
+      <div class="acct" id="acct">
+        <button type="button" class="abtn primary" id="acLogin" hidden data-i18n="acc.login"></button>
+        <select id="wsSel" aria-label="List" hidden></select>
+        <button type="button" class="abtn" id="acShare" hidden data-i18n="acc.share"></button>
+        <span class="plan" id="acPlan" hidden></span>
+        <button type="button" class="abtn primary" id="acUpgrade" hidden data-i18n="acc.upgrade"></button>
+        <span class="sync" id="acSync" hidden></span>
+        <button type="button" class="abtn" id="acOut" hidden data-i18n="acc.logout"></button>
+      </div>
       <select id="langSel" aria-label="Language">
         <option value="uk">UA</option>
         <option value="pl">PL</option>
@@ -136,6 +145,31 @@
 <div class="grid verdicts" id="verdicts"></div>
 </div>
 
+
+<dialog id="dlgLogin" class="dlg" aria-labelledby="dlgLoginT">
+  <form method="dialog" class="dhead"><h3 id="dlgLoginT" data-i18n="acc.login.title"></h3><button class="dx" aria-label="Close">×</button></form>
+  <p class="dnote" id="dlgLoginNote" hidden></p>
+  <button type="button" class="abtn big" id="lgGoogle" data-i18n="acc.google"></button>
+  <div class="dsep"><span data-i18n="acc.or"></span></div>
+  <form id="lgForm" class="dform">
+    <input type="email" id="lgEmail" required autocomplete="email" placeholder="email@example.com">
+    <button class="abtn big primary" data-i18n="acc.magic"></button>
+  </form>
+  <p class="msg" id="lgMsg" role="status"></p>
+</dialog>
+<dialog id="dlgShare" class="dlg" aria-labelledby="dlgShareT">
+  <form method="dialog" class="dhead"><h3 id="dlgShareT" data-i18n="acc.share.title"></h3><button class="dx" aria-label="Close">×</button></form>
+  <div id="shBody"></div>
+</dialog>
+<dialog id="dlgPlan" class="dlg" aria-labelledby="dlgPlanT">
+  <form method="dialog" class="dhead"><h3 id="dlgPlanT" data-i18n="acc.plan.title"></h3><button class="dx" aria-label="Close">×</button></form>
+  <p class="dnote" id="plNote" hidden></p>
+  <div class="plans">
+    <div><b>FREE</b><ul><li data-i18n="acc.plan.f1"></li><li data-i18n="acc.plan.f2"></li><li data-i18n="acc.plan.f3"></li></ul></div>
+    <div class="pro"><b>PRO</b><ul><li data-i18n="acc.plan.p1"></li><li data-i18n="acc.plan.p2"></li><li data-i18n="acc.plan.p3"></li><li data-i18n="acc.plan.p4"></li></ul></div>
+  </div>
+  <div id="plAct"></div>
+</dialog>
 <script src="js/i18n.js"></script>
 <script src="js/i18n-core.js"></script>
 <script src="js/flats.js"></script>
@@ -154,5 +188,6 @@
 <script src="js/nav.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/cloud.js"></script>
+<script src="js/account.js"></script>
 </body>
 </html>
