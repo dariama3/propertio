@@ -1,0 +1,1 @@
+All commits have to be in ENGLISH - short and simple
