@@ -3,7 +3,9 @@
 // localStorage віддзеркалює активний список (workspace), тому офлайн-старт показує останній стан.
 const Cloud = (() => {
   const FREE_LIMIT = 10;
-  const SETTING_KEYS = ['s','fav','czovr','ownsel','owncfg','links'];   // ключі store → settings у хмарі
+  const SETTING_KEYS = ['fav','czovr','ownsel','owncfg','links'];   // ключі store → settings у хмарі
+  // S зберігається полями окремо (s_rate, s_dp, …), щоб зміни різних полів не затирали одна одну
+  const sBase={};                                      // значення S, відомі в хмарі
   const LS = {
     get:k=>{ try{return localStorage.getItem('propertio.'+k)}catch(e){return null} },
     set:(k,v)=>{ try{localStorage.setItem('propertio.'+k,v)}catch(e){} },
@@ -36,12 +38,18 @@ const Cloud = (() => {
   const fail = e => ({ok:false, err:errKey(e), limit:FREE_LIMIT});
 
   // ───────── знімок ↔ рядок workspaces ─────────
-  const rowToSnap = r => { const st=r.settings||{}; return {user:r.flats,hidden:r.hidden_ids,s:st.s,fav:st.fav,czovr:st.czovr,ownsel:st.ownsel,owncfg:st.owncfg,links:st.links}; };
+  const rowToSnap = r => {
+    const st=r.settings||{}, sv={};
+    S_KEYS.forEach(k=>{ if(('s_'+k) in st)sv[k]=st['s_'+k]; });
+    return {user:r.flats,hidden:r.hidden_ids,s:sv,fav:st.fav,czovr:st.czovr,ownsel:st.ownsel,owncfg:st.owncfg,links:st.links};
+  };
+  const clone = v => JSON.parse(JSON.stringify(v));
 
   function applyRow(row){
     const before=canon(localSnapshot());
     applying=true;
     try{ applySnapshot(rowToSnap(row), new Set(pendingKeys)); }finally{ applying=false; }
+    S_KEYS.forEach(k=>{ if(!pendingKeys.has('s_'+k))sBase[k]=clone(S[k]); });
     if(canon(localSnapshot())!==before) refreshUI();     // «ехо» власних змін нічого не перемальовує
   }
 
@@ -98,16 +106,23 @@ const Cloud = (() => {
   }
 
   // налаштування: локально одразу, у хмару — з debounce 1500 мс (патч лише змінених ключів)
+  // ставка/вартість права змінюються під час набору → 1500 мс; ★, чинш, вид права — разові дії → швидко
+  const SLOW_KEYS=new Set(['owncfg','s_rate','s_ex']);
+  let settingsDue=0;
   function queueSetting(k){
-    pendingKeys.add(k); clearTimeout(settingsTimer); settingsTimer=setTimeout(flushSettings,1500);
+    pendingKeys.add(k);
+    const delay=SLOW_KEYS.has(k)?1500:300, due=Date.now()+delay;
+    if(settingsTimer&&settingsDue<=due)return;      // вже заплановано не пізніше
+    clearTimeout(settingsTimer); settingsDue=due; settingsTimer=setTimeout(flushSettings,delay);
   }
   function flushSettings(){
-    clearTimeout(settingsTimer);
+    clearTimeout(settingsTimer); settingsTimer=null;
     if(!pendingKeys.size||!active())return Promise.resolve({ok:true});
     const keys=[...pendingKeys], wid=ws.id, patch={};
     pendingKeys.clear();
-    keys.forEach(k=>patch[k]=store.get(k,k==='fav'?[]:{}));
+    keys.forEach(k=>patch[k]=k.startsWith('s_')?clone(S[k.slice(2)]):store.get(k,k==='fav'?[]:{}));
     return (write(()=>rpc('merge_workspace_settings',{p_workspace_id:wid,p_patch:patch}))).then(r=>{
+      if(r.ok)keys.forEach(k=>{ if(k.startsWith('s_'))sBase[k.slice(2)]=patch[k]; });
       if(!r.ok&&r.err==='err.offline'){ keys.forEach(k=>pendingKeys.add(k)); clearTimeout(retryTimer); retryTimer=setTimeout(flushSettings,10000); }
       return r;
     });
@@ -173,6 +188,7 @@ const Cloud = (() => {
     }
     for(const id of HIDDEN)await rpc('set_hidden_in_workspace',{p_workspace_id:wid,p_id:id,p_hidden:true});
     const patch={}; SETTING_KEYS.forEach(k=>patch[k]=store.get(k,k==='fav'?[]:{}));
+    S_KEYS.forEach(k=>patch['s_'+k]=clone(S[k]));
     await rpc('merge_workspace_settings',{p_workspace_id:wid,p_patch:patch});
     if(limited)alert(t('sync.migrate.limit',{n:FREE_LIMIT}));
   }
@@ -272,7 +288,11 @@ const Cloud = (() => {
     let cfg; try{ const r=await fetch('api/config'); if(!r.ok)return; cfg=await r.json(); }catch(e){ return; }
     sb=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey);
 
-    store.onSet=k=>{ if(!applying&&active()&&SETTING_KEYS.includes(k))queueSetting(k); };
+    store.onSet=k=>{
+      if(applying||!active())return;
+      if(k==='s')S_KEYS.forEach(f=>{ if(canon(S[f])!==canon(sBase[f]))queueSetting('s_'+f); });
+      else if(SETTING_KEYS.includes(k))queueSetting(k);
+    };
     sb.auth.onAuthStateChange((ev,session)=>{
       setTimeout(()=>{                                // не викликати supabase усередині колбека
         if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session))onSignedOut();

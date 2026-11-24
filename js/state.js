@@ -126,8 +126,10 @@ function applySnapshot(sn,skip=new Set()){
   if(!skip.has('links')){ LINKS={}; Object.entries(obj(sn.links)).forEach(([k,v])=>{ if(typeof v==='string'&&/^https?:\/\//i.test(v))LINKS[k]=v.slice(0,500); }); store.set('links',LINKS); }
   rebuildFlats();
   if(!skip.has('s')){
-    Object.assign(S,JSON.parse(JSON.stringify(S_DEF)),cleanS(sn.s));   // немає в хмарі → типові значення
-    fixAB(); saveS.last=JSON.stringify(sSnap()); store.set('s',sSnap());
+    // кожне поле S синхронізується окремо (s_rate, s_dp, …) → skip може містити 's_<поле>'
+    const def=JSON.parse(JSON.stringify(S_DEF)), cs=cleanS(sn.s);
+    S_KEYS.forEach(k=>{ if(!skip.has('s_'+k))S[k]=k in cs?cs[k]:def[k]; });
+  fixAB(); saveS.last=JSON.stringify(sSnap()); store.set('s',sSnap());
   }
 }
 // Прибрати квартиру локально (відкат, якщо хмара відхилила додавання)
