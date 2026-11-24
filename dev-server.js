@@ -34,9 +34,10 @@ http.createServer(async (req, res) => {
     try { return await runApi(api[1], u, req, res); }
     catch (e) { console.error(e); if (!res.headersSent) res.writeHead(500); return res.end('Server error'); }
   }
-  if (u.pathname === '/' || u.pathname === '/index.html') {
+  const page = { '/': 'index.html', '/index.html': 'index.html', '/account': 'account.html', '/account.html': 'account.html' }[u.pathname];
+  if (page) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    return res.end(await readFile(new URL('./index.html', import.meta.url)));
+    return res.end(await readFile(new URL('./' + page, import.meta.url)));
   }
   const st = u.pathname.match(/^\/(js|css)\/([\w-]+\.(js|css))$/);
   if (st) {

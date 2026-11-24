@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node dev-server.js",
-    "build": "rm -rf public && mkdir public && cp -R index.html css js assets public/"
+    "build": "rm -rf public && mkdir public && cp -R index.html account.html css js assets public/"
   },
   "engines": {
     "node": ">=20"

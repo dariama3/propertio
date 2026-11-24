@@ -8,10 +8,10 @@
 <link rel="icon" href="assets/favicon-light.ico" sizes="any" media="(prefers-color-scheme: light)">
 <link rel="icon" href="assets/favicon-dark.ico" sizes="any" media="(prefers-color-scheme: dark)">
 <link rel="stylesheet" href="css/style.css">
-  <script>
-    import { inject } from "@vercel/analytics"
+  <script type="module">
+    import { inject } from "https://esm.sh/@vercel/analytics"
 
-    inject()
+    inject({ mode: location.hostname === "localhost" ? "development" : "production" })
   </script>
 </head>
 <body>
@@ -26,6 +26,7 @@
       <div class="acct" id="acct">
         <button type="button" class="abtn primary" id="acLogin" hidden data-i18n="acc.login"></button>
         <select id="wsSel" aria-label="List" hidden></select>
+        <a class="abtn" id="acCab" href="account.html" hidden data-i18n="cab.title" style="text-decoration:none"></a>
         <button type="button" class="abtn" id="acShare" hidden data-i18n="acc.share"></button>
         <span class="plan" id="acPlan" hidden></span>
         <button type="button" class="abtn primary" id="acUpgrade" hidden data-i18n="acc.upgrade"></button>

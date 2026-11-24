@@ -9,6 +9,7 @@ const Account = (() => {
     const on = !!st.user;
     $id('acLogin').hidden = on;
     $id('wsSel').hidden = !on || st.workspaces.length < 2;
+    $id('acCab').hidden = !on;
     $id('acShare').hidden = !on;
     $id('acPlan').hidden = !on;
     $id('acUpgrade').hidden = !on || st.isPro;
