@@ -74,11 +74,13 @@ const Cloud = (() => {
   // ───────── запис (послідовна черга) ─────────
   function write(fn){
     writeSeq++; inflight++;
+    if(status==='synced')setStatus('syncing');          // індикатор у шапці: іде збереження
     const run=queue.then(fn).then(r=>{ buffered=true; return r; });   // після запису звіряємося з хмарою
     queue=run.then(()=>{},()=>{}).then(()=>{ inflight--; if(!inflight&&buffered){ buffered=false; refresh(); } });
     return run.then(()=>({ok:true}),e=>{
       const r=fail(e); console.warn('cloud write failed',e);
-      if(r.err!=='err.offline') buffered=true;           // відхилено сервером (ліміт/права) — звіряємося з хмарою
+      if(r.err==='err.offline')setStatus('error',r.err);
+      else buffered=true;           // відхилено сервером (ліміт/права) — звіряємося з хмарою
       return r;
     });
   }

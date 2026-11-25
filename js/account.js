@@ -1,7 +1,9 @@
 // ---------- АКАУНТ: вхід, списки, спільний доступ, тариф ----------
 const Account = (() => {
   const $id = id => document.getElementById(id);
-  let st = Cloud.state();
+  const SYNC_ICONS = {synced: 'cloud-check', error: 'cloud-exclamation-point', syncing: 'cloud-sync'};
+  const icons = () => window.lucide?.createIcons();
+  let st = Cloud.state(), prevSync, syncTimer;
   const showM = d => { if(!d.open)d.showModal(); };
 
   function render(){
@@ -9,24 +11,41 @@ const Account = (() => {
     const on = !!st.user;
     $id('acLogin').hidden = on;
     $id('wsSel').hidden = !on || st.workspaces.length < 2;
-    $id('acCab').hidden = !on;
+    $id('acMenu').hidden = !on;
+    if(!on)setMenu(false);
+    $id('acEmail').textContent = st.user?.email || '';
+    $id('acUser').title = $id('acUser').ariaLabel = st.user?.email || '';
     $id('acShare').hidden = !on;
+    $id('acShare').title = $id('acShare').ariaLabel = t('acc.share');
     $id('acPlan').hidden = !on;
     $id('acUpgrade').hidden = !on || st.isPro;
-    $id('acSync').hidden = !on;
-    $id('acOut').hidden = !on;
     if(!on){ if(st.pendingInvite && !$id('dlgLogin').open && !sessionStorage.getItem('propertio.invShown')){ sessionStorage.setItem('propertio.invShown','1'); openLogin('acc.login.invite'); } return; }
     $id('wsSel').innerHTML = st.workspaces.map(w=>`<option value="${esc(w.id)}">${esc(w.name)}</option>`).join('');
     if(st.ws)$id('wsSel').value = st.ws.id;
     const pro = st.isPro;
     $id('acPlan').textContent = pro ? 'PRO' : 'FREE'; $id('acPlan').className = 'plan' + (pro ? ' pro' : '');
-    const s = st.status;
-    $id('acSync').textContent = t('sync.' + (s === 'synced' ? 'synced' : s === 'error' ? 'error' : 'syncing'));
-    $id('acSync').className = 'sync' + (s === 'error' ? ' error' : '');
+    // індикатор лише під час збереження: «синхронізація» → «збережено» ще на 2,5 с; помилка лишається
+    const el = $id('acSync'), s = st.status;
+    const k = s === 'guest' ? null : s === 'synced' ? 'synced' : s === 'error' ? 'error' : 'syncing';
+    if(k !== prevSync){
+      prevSync = k; clearTimeout(syncTimer);
+      el.hidden = !k;
+      if(k){
+        el.innerHTML = `<i data-lucide="${SYNC_ICONS[k]}"></i>`; icons();
+        el.title = el.ariaLabel = t('sync.' + k); el.className = 'sync ' + k;
+        if(k === 'synced')syncTimer = setTimeout(() => { el.hidden = true; }, 2500);
+      }
+    }
     if(st.user && $id('dlgLogin').open)$id('dlgLogin').close();
     if($id('dlgShare').open)renderShare();
     if($id('dlgPlan').open)renderPlan();
   }
+
+  // ----- меню користувача -----
+  function setMenu(open){ $id('acPop').hidden = !open; $id('acUser').setAttribute('aria-expanded', open); }
+  $id('acUser').onclick = e => { e.stopPropagation(); setMenu($id('acPop').hidden); };
+  document.addEventListener('click', e => { if(!$id('acPop').contains(e.target))setMenu(false); });
+  document.addEventListener('keydown', e => { if(e.key === 'Escape')setMenu(false); });
 
   // ----- вхід -----
   function openLogin(noteKey){
@@ -125,6 +144,6 @@ const Account = (() => {
 
   // закриття модалки кліком по фону
   document.querySelectorAll('.dlg').forEach(d => d.addEventListener('click', e => { if(e.target === d)d.close(); }));
-  Cloud.onChange(render); render();
+  Cloud.onChange(render); render(); icons();
   return {upsell, render};
 })();

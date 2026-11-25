@@ -12,7 +12,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.119.2",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/functions": "^3.4.0"
+    "@vercel/functions": "^3.4.0",
+    "lucide": "^1.80.0"
   },
   "devDependencies": {
     "supabase": "^3.4.0"

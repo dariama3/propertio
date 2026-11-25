@@ -17,29 +17,7 @@
 <body>
 <div class="wrap">
 <header>
-  <div class="topbar">
-    <a class="brand" href="./" aria-label="Propertio">
-      <span class="brand-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 830" aria-hidden="true"><g class="ln" stroke-width="40" stroke-linejoin="miter"><polygon fill="#E09132" points="55,805 48,290 640,38 640,125 345,295 347,802"/><polygon fill="#375EEB" points="432,35 1027,290 1020,805 730,800 735,295 432,165"/></g></svg></span>
-      <span class="brand-name">Propertio</span>
-    </a>
-    <div class="langbar">
-      <div class="acct" id="acct">
-        <button type="button" class="abtn primary" id="acLogin" hidden data-i18n="acc.login"></button>
-        <select id="wsSel" aria-label="List" hidden></select>
-        <a class="abtn" id="acCab" href="account.html" hidden data-i18n="cab.title" style="text-decoration:none"></a>
-        <button type="button" class="abtn" id="acShare" hidden data-i18n="acc.share"></button>
-        <span class="plan" id="acPlan" hidden></span>
-        <button type="button" class="abtn primary" id="acUpgrade" hidden data-i18n="acc.upgrade"></button>
-        <span class="sync" id="acSync" hidden></span>
-        <button type="button" class="abtn" id="acOut" hidden data-i18n="acc.logout"></button>
-      </div>
-      <select id="langSel" aria-label="Language">
-        <option value="uk">UA</option>
-        <option value="pl">PL</option>
-        <option value="en">EN</option>
-      </select>
-    </div>
-  </div>
+  <div id="topbar" data-account></div>
   <div class="hero">
     <h1 data-i18n="h1"></h1>
     <p class="sub" data-i18n="sub"></p>
@@ -173,6 +151,7 @@
 </dialog>
 <script src="js/i18n.js"></script>
 <script src="js/i18n-core.js"></script>
+<script src="js/header.js"></script>
 <script src="js/flats.js"></script>
 <script src="js/state.js"></script>
 <script src="js/ownership.js"></script>
@@ -189,6 +168,8 @@
 <script src="js/nav.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/cloud.js"></script>
+<script src="https://unpkg.com/lucide@1.80.0/dist/umd/lucide.min.js"></script>
 <script src="js/account.js"></script>
+<script src="js/lang-menu.js"></script>
 </body>
 </html>
